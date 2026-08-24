@@ -161,7 +161,7 @@ fun HarnessApp(vm: HarnessViewModel = viewModel(), initialUrl: String? = null) {
                         modifier = Modifier.fillMaxWidth().padding(8.dp)
                     ) {
                         Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text("Versiune ${u.versionName} disponibilă", style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                            Text("Version ${u.versionName} available", style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
                             Button(onClick = {
                                 scope.launch {
                                     if (UpdateManager.needsInstallPermission(context)) {
@@ -172,11 +172,11 @@ fun HarnessApp(vm: HarnessViewModel = viewModel(), initialUrl: String? = null) {
                                         if (size > 5_000_000) {
                                             UpdateManager.install(context, file)
                                         } else {
-                                            Toast.makeText(context, "Descărcare incompletă ($size B)", Toast.LENGTH_LONG).show()
+                                            Toast.makeText(context, "Incomplete download ($size B)", Toast.LENGTH_LONG).show()
                                         }
                                     }
                                 }
-                            }) { Text("Actualizează", fontSize = 12.sp) }
+                            }) { Text("Update", fontSize = 12.sp) }
                         }
                     }
                 }
@@ -191,7 +191,7 @@ fun HarnessApp(vm: HarnessViewModel = viewModel(), initialUrl: String? = null) {
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             OutlinedButton(onClick = { tab = 0; showSettings = false }, modifier = Modifier.weight(1f)) {
-                                Text("Conversații", fontSize = 13.sp)
+                                Text("Chats", fontSize = 13.sp)
                             }
                             OutlinedButton(onClick = { tab = 1; showSettings = false }, modifier = Modifier.weight(1f)) {
                                 Text("Workspace", fontSize = 13.sp)
@@ -230,17 +230,17 @@ private fun SettingsScreen(context: Context, baseUrl: String) {
     val t = LocalHarness.current
     val mode = ThemePrefs.mode.value
     val options = listOf(
-        ThemeMode.SYSTEM to "Automat (urmează sistemul)",
-        ThemeMode.LIGHT to "Luminos",
-        ThemeMode.DARK to "Întunecat"
+        ThemeMode.SYSTEM to "System (follow device)",
+        ThemeMode.LIGHT to "Light",
+        ThemeMode.DARK to "Dark"
     )
     val qrLink = if (baseUrl.isNotBlank()) "harness://open?url=" + Uri.encode(baseUrl) else ""
     val qr = remember(qrLink) { if (qrLink.isNotBlank()) qrBitmap(qrLink) else null }
     Column(Modifier.fillMaxSize().padding(20.dp).verticalScroll(rememberScrollState())) {
-        Text("SETĂRI", fontFamily = FontFamily.Monospace, fontSize = 12.sp,
+        Text("SETTINGS", fontFamily = FontFamily.Monospace, fontSize = 12.sp,
             letterSpacing = 3.sp, color = t.accentText, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(4.dp))
-        Text("Temă", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text("Theme", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(12.dp))
         options.forEach { (m, label) ->
             Card(
@@ -262,26 +262,26 @@ private fun SettingsScreen(context: Context, baseUrl: String) {
             }
         }
         Spacer(Modifier.height(24.dp))
-        Text("Configurare rapidă", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text("Quick setup", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
         if (baseUrl.isNotBlank()) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 qr?.let {
-                    Image(bitmap = it.asImageBitmap(), contentDescription = "QR configurare",
+                    Image(bitmap = it.asImageBitmap(), contentDescription = "setup QR",
                         modifier = Modifier.size(200.dp).background(Color.White))
                 }
                 Spacer(Modifier.height(8.dp))
-                Text("Scanează QR-ul cu un cititor — se deschide app-ul cu adresa\n$baseUrl\nprecompletată.",
+                Text("Scan the QR with any reader — the app opens with\n$baseUrl\npre-filled.",
                     style = MaterialTheme.typography.bodySmall, color = t.muted, lineHeight = 16.sp)
             }
         } else {
-            Text("Conectează-te întâi ca să generezi QR-ul de configurare.",
+            Text("Connect first to generate the setup QR.",
                 style = MaterialTheme.typography.bodySmall, color = t.muted)
         }
         Spacer(Modifier.height(24.dp))
-        Text("Despre", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text("About", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(6.dp))
-        Text("Harness · client nativ DeepSeek Harness pe Tailscale.\nSesiuni, model, workspace și fișiere în direct.",
+        Text("Harness · a native client for DeepSeek Harness over Tailscale.\nSessions, model, workspace and files, live.",
             style = MaterialTheme.typography.bodySmall, color = t.muted, lineHeight = 18.sp)
     }
 }
@@ -293,10 +293,10 @@ private fun ConnectScreen(vm: HarnessViewModel, initialUrl: String? = null, onCo
     var showHelp by remember { mutableStateOf(false) }
     val status by vm.status.collectAsState()
     val steps = listOf(
-        "Instalează Tailscale pe PC și telefon, conectate la același tailnet.",
-        "Pe PC, rulează: powershell -File setup-dsh-remote.ps1 (o dată).",
-        "Repornește DSH (Ctrl+C, apoi 'ollama launch dsh').",
-        "Introdu mai jos adresa afișată de script (ex. http://nume.ts.net:3080)."
+        "Install Tailscale on your PC and phone, signed into the same tailnet.",
+        "On the PC, run once: powershell -File setup-dsh-remote.ps1",
+        "Restart DSH (Ctrl+C, then 'ollama launch dsh').",
+        "Enter the address shown by the script below (e.g. http://host.ts.net:3080)."
     )
     Column(
         Modifier.fillMaxSize().padding(24.dp).imePadding().verticalScroll(rememberScrollState()),
@@ -305,28 +305,28 @@ private fun ConnectScreen(vm: HarnessViewModel, initialUrl: String? = null, onCo
         Spacer(Modifier.height(24.dp))
         Text("HARNESS", fontFamily = FontFamily.Monospace, fontSize = 34.sp,
             letterSpacing = 6.sp, fontWeight = FontWeight.Bold, color = t.accent)
-        Text("DeepSeek Harness pe telefon", style = MaterialTheme.typography.bodyMedium, color = t.muted)
+        Text("DeepSeek Harness on your phone", style = MaterialTheme.typography.bodyMedium, color = t.muted)
         Spacer(Modifier.height(24.dp))
         OutlinedTextField(
             value = url,
             onValueChange = { url = it },
-            label = { Text("Adresă DSH") },
+            label = { Text("DSH address") },
             placeholder = { Text("http://<tailnet-ip>:3080") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(Modifier.height(8.dp))
-        Text("Adresa instanței tale DSH din Tailscale (ex. http://100.x.y.z:3080 sau http://nume.ts.net:3080)",
+        Text("Your DSH address from Tailscale (e.g. http://100.x.y.z:3080 or http://host.ts.net:3080)",
             style = MaterialTheme.typography.bodySmall, color = t.muted)
         Spacer(Modifier.height(16.dp))
         Button(
             onClick = { vm.setBase(url); vm.connect(onSuccess = { onConnected() }) },
             enabled = url.isNotBlank(),
             modifier = Modifier.fillMaxWidth()
-        ) { Text("Conectează-te") }
+        ) { Text("Connect") }
         Spacer(Modifier.height(8.dp))
         TextButton(onClick = { showHelp = !showHelp }) {
-            Text(if (showHelp) "Ascunde ajutorul" else "Cum mă conectez?")
+            Text(if (showHelp) "Hide help" else "How do I connect?")
         }
         if (showHelp) {
             Card(
@@ -340,7 +340,7 @@ private fun ConnectScreen(vm: HarnessViewModel, initialUrl: String? = null, onCo
                 }
             }
         }
-        if (status != "Neconectat") {
+        if (status != "Disconnected") {
             Spacer(Modifier.height(12.dp))
             Text(status, style = MaterialTheme.typography.bodySmall, color = t.muted)
         }
@@ -371,7 +371,7 @@ private fun SessionsScreen(
         }
         val ungrouped = sessions.filter { s -> workspaces.none { it.sessionIds.contains(s.sessionId) } }
         if (ungrouped.isNotEmpty()) {
-            result.add("Fără workspace")
+            result.add("No workspace")
             result.addAll(ungrouped)
         }
         result
@@ -386,7 +386,7 @@ private fun SessionsScreen(
                 },
                 actions = {
                     IconButton(onClick = { vm.newSession() }) {
-                        Icon(Icons.Filled.Add, contentDescription = "Sesiune nouă", tint = t.accentText)
+                        Icon(Icons.Filled.Add, contentDescription = "New session", tint = t.accentText)
                     }
                 }
             )
@@ -456,14 +456,14 @@ private fun WorkspaceScreen(
                 navigationIcon = {
                     if (currentDir != null) {
                         IconButton(onClick = { vm.listDir(workspaces.firstOrNull()?.path) }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Rădăcina workspace")
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Workspace root")
                         }
                     }
                 },
                 actions = {
                     if (workspaces.isNotEmpty()) {
                         IconButton(onClick = { vm.listDir(workspaces.first().path) }) {
-                            Icon(Icons.Filled.Folder, contentDescription = "Deschide workspace", tint = t.accentText)
+                            Icon(Icons.Filled.Folder, contentDescription = "Open workspace", tint = t.accentText)
                         }
                     }
                 }
@@ -472,7 +472,7 @@ private fun WorkspaceScreen(
     ) { pad ->
         if (files.isEmpty() && currentDir == null && workspaces.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(pad), contentAlignment = Alignment.Center) {
-                Text("Niciun workspace disponibil.", color = t.muted)
+                Text("No workspace available.", color = t.muted)
             }
             return@Scaffold
         }
@@ -516,10 +516,10 @@ private fun com.dsh.harness.data.SessionItem.timeText(): String {
     val now = System.currentTimeMillis()
     val d = now - updatedAt
     return when {
-        d < 60_000 -> "chiar acum"
-        d < 3_600_000 -> "${d / 60_000} min în urmă"
-        d < 86_400_000 -> "${d / 3_600_000} h în urmă"
-        else -> "${d / 86_400_000} z în urmă"
+        d < 60_000 -> "just now"
+        d < 3_600_000 -> "${d / 60_000} min ago"
+        d < 86_400_000 -> "${d / 3_600_000} h ago"
+        else -> "${d / 86_400_000} d ago"
     }
 }
 
@@ -565,11 +565,11 @@ private fun ChatScreen(vm: HarnessViewModel, sessionId: String, title: String?, 
         topBar = {
             TopAppBar(
                 title = {
-                    Text(title ?: "Conversație", style = MaterialTheme.typography.titleMedium,
+                    Text(title ?: "Conversation", style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Înapoi") }
+                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
                 },
                 actions = {
                     Box {
@@ -606,7 +606,7 @@ private fun ChatScreen(vm: HarnessViewModel, sessionId: String, title: String?, 
                 if (canLoadOlder) {
                     item {
                         OutlinedButton(onClick = { vm.loadOlder() }, modifier = Modifier.fillMaxWidth()) {
-                            Text("Încarcă mesaje mai vechi", fontSize = 13.sp)
+                            Text("Load older messages", fontSize = 13.sp)
                         }
                     }
                 }
@@ -615,7 +615,7 @@ private fun ChatScreen(vm: HarnessViewModel, sessionId: String, title: String?, 
             }
             pendingImage?.let {
                 Row(Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("🖼 imagine atașată", style = MaterialTheme.typography.bodySmall, color = Color(0xFF9AC7FF))
+                    Text("🖼 image attached", style = MaterialTheme.typography.bodySmall, color = Color(0xFF9AC7FF))
                     Spacer(Modifier.width(8.dp))
                     IconButton(onClick = { vm.setPendingImage(null) }, modifier = Modifier.size(28.dp)) {
                         Text("✕", fontSize = 14.sp)
@@ -627,13 +627,13 @@ private fun ChatScreen(vm: HarnessViewModel, sessionId: String, title: String?, 
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = { pickImage.launch("image/*") }, modifier = Modifier.size(40.dp)) {
-                    Icon(Icons.Filled.Add, contentDescription = "Atașează imagine")
+                    Icon(Icons.Filled.Add, contentDescription = "Attach image")
                 }
                 OutlinedTextField(
                     value = input,
                     onValueChange = { input = it },
                     modifier = Modifier.weight(1f),
-                    placeholder = { Text("Scrie…") },
+                    placeholder = { Text("Type a message…") },
                     maxLines = 4
                 )
                 Spacer(Modifier.width(8.dp))
@@ -662,7 +662,7 @@ private fun MessageBubble(m: MessageItem) {
     val mine = m.role == "user"
     val bg = if (mine) t.accentSoft else t.surfaceAlt
     val role = when (m.role) {
-        "user" -> "TU"
+        "user" -> "YOU"
         "assistant" -> "AI"
         "tool" -> "TOOL"
         else -> "SYS"
@@ -731,7 +731,7 @@ private fun QuestionCard(q: QuestionItem, onAnswer: (String, List<String>, Strin
                 enabled = selected != null,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Răspunde")
+                Text("Answer")
             }
         }
     }

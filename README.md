@@ -1,118 +1,121 @@
-# Harness — DeepSeek Harness pe telefon (Android)
+# Harness — DeepSeek Harness on your phone (Android)
 
-Aplicație Android nativă (Kotlin + Jetpack Compose) care vorbește cu **instanța ta de DeepSeek Harness** de pe PC, prin **Tailscale** — de pe telefon, de oriunde. Chat cu streaming live, schimbare de model, fișiere workspace, atașare imagini, light/dark.
+A native Android app (Kotlin + Jetpack Compose) that talks to **your own DeepSeek Harness** instance over **Tailscale** — from your phone, anywhere. Live streaming chat, model switching, workspace files, image attachments, light/dark themes.
 
-> Fiecare utilizator se conectează la **propria** instanță DSH, prin **propriul** tailnet. Aplicația nu accesează PC-ul altcuiva.
+> Each user connects to their **own** DSH instance, through their **own** tailnet. The app never accesses someone else's PC.
 
-> **Beta.** Funcții esențiale merg, dar mai sunt muchii de slefuit. Actualizările se instalează din app (sau descarci ultimul APK din GitHub Releases).
+> **Beta.** Core features work; some edges are still rough. Updates install from inside the app (or download the latest APK from GitHub Releases).
 
-**Demo (ilustrativ):**
+**Demo (illustrative):**
 
 ![Harness demo](demo.gif)
 
 ---
 
-## De ce ai nevoie
-- **PC cu DeepSeek Harness** (`dsh`) instalat.
-- **Tailscale** instalat pe PC **și** pe telefon, conectate la **același tailnet**.
-- Telefon Android (minim 8.0).
+## What you need
+- A **PC with DeepSeek Harness** (`dsh`) installed.
+- **Tailscale** installed on the PC **and** your phone, signed into the **same tailnet**.
+- An Android phone (Android 8+).
 
 ---
 
-## 1. Setare remote access pe PC (o singură dată)
+## 1. Set up remote access on the PC (once)
 
-Pe PC, rulează script-ul de setup (deschide PowerShell și):
+On the PC, run the setup script (open PowerShell and):
 
 ```powershell
-# descarcă scriptul, apoi:
+# after downloading the script:
 powershell -ExecutionPolicy Bypass -File .\setup-dsh-remote.ps1
 ```
 
-Scriptul, automat:
-- leagă GUI-ul DSH la `0.0.0.0` (prin patch-ul profilului `web`),
-- adaugă o regulă de firewall care permite portul **3080** **doar din tailnet** (`100.64.0.0/10`),
-- îți afișează **adresa** de introdus în aplicație (ex. `http://100.x.y.z:3080` sau `http://nume.ts.net:3080`).
+The script automatically:
+- binds the DSH web GUI to `0.0.0.0` (via the `web` profile patch),
+- adds a firewall rule allowing port **3080** **only from the tailnet** (`100.64.0.0/10`),
+- prints the **address** to enter in the app (e.g. `http://100.x.y.z:3080` or `http://host.ts.net:3080`).
 
-(va cere drepturi de administrator o dată, normal).
+(It will ask for administrator rights once — normal.)
 
-După script: **repornește DSH** — `Ctrl+C` în terminalul lui, apoi `ollama launch dsh` (sau `dsh web`).
+After the script: **restart DSH** — `Ctrl+C` in its terminal, then `ollama launch dsh` (or `dsh web`).
 
-### Manual (fără script)
-1. Editează `$DSH_HOME\profiles\web\cordis.patch.yml` și adaugă:
+### Manual (without the script)
+1. Edit `$DSH_HOME\profiles\web\cordis.patch.yml` and add:
    ```yaml
    - id: webserver
      config:
        host: '0.0.0.0'
        port: 3080
    ```
-2. Regula de firewall (din terminal administrator):
+2. Firewall rule (from an admin terminal):
    ```
    netsh advfirewall firewall add rule name="DSH Web tailnet" dir=in action=allow protocol=TCP localport=3080 remoteip=100.64.0.0/10
    ```
-3. Repornește DSH.
+3. Restart DSH.
 
 ---
 
-## 2. Instalează aplicația pe telefon
+## 2. Install the app on your phone
 
-- Descarcă cel mai recent **`app-release.apk`** din **GitHub Releases** (secțiunea *Assets* a unui release).
-- Deschide fișierul pe telefon → permiți *instalarea din surse necunoscute* → **Instalează**.
-
----
-
-## 3. Conectare
-1. Deschide **Harness**.
-2. Introdu adresa afișată de script (ex. `http://desktop-nume.ts.net:3080`).
-3. Apasă **Conectează-te** — vezi conversațiile, schimbi modelul (buton sus / `/model`), atașezi imagini, răsfoiești workspace-ul.
-
-**Configurare rapidă (QR):** după conectare, în **Settings (⚙)** ai un **QR de configurare**. Alt telefon îl scanează cu orice cititor de QR → se deschide Harness cu adresa **precompletată** (deep link `harness://open?url=…`), fără să tastezi nimic.
+- Download the latest **`app-release.apk`** from **GitHub Releases** (the *Assets* section of a release).
+- Open the file on your phone → allow *install from unknown sources* → **Install**.
 
 ---
 
-## Dezvoltare
-Proiect: `G:\...\Harness` · Kotlin + Compose · `compileSdk 36` · Gradle 8.14.3.
-Build APK:
-```bash
-./gradlew assembleRelease
-```
-APK-ul iese în `app/build/outputs/apk/release/app-release.apk`. (Semnarea folosește un keystore local, nu se commit-uiește.)
+## 3. Connect
+1. Open **Harness**.
+2. Enter the address shown by the script (e.g. `http://host.ts.net:3080`).
+3. Tap **Connect** — you'll see your conversations, switch models (top button / `/model`), attach images, browse the workspace.
+
+**Quick setup (QR):** after connecting, open **Settings (⚙)** → you'll find a **setup QR**. Scan it with any reader on another phone → Harness opens with the address **pre-filled** (deep link `harness://open?url=…`), no typing needed.
+
+---
 
 ## Release / CI (GitHub Actions)
-- Fiecare push / PR construiește automat APK-ul (`.github/workflows/build.yml`).
-- Pentru un **release semnat**: în GitHub → repo → *Settings → Secrets and variables → Actions*, setează:
-  - `SIGNING_STORE` (keystore în base64), `SIGNING_STORE_PASSWORD`, `SIGNING_KEY_ALIAS`, `SIGNING_KEY_PASSWORD`.
-  - Fără secrets, build-ul folosește cheia **debug** (instalabilă, ok pentru beta).
-- Creezi un **tag** `v1.x` → CI generează un **GitHub Release** cu `app-release.apk` în *Assets*.
+- Every push / PR builds the APK automatically (`.github/workflows/build.yml`).
+- For a **signed release**: in GitHub → repo → *Settings → Secrets and variables → Actions*, set:
+  - `SIGNING_STORE` (keystore as base64), `SIGNING_STORE_PASSWORD`, `SIGNING_KEY_ALIAS`, `SIGNING_KEY_PASSWORD`.
+  - Without secrets, the build uses the **debug** key (installable, fine for beta).
+- Push a **tag** `v1.x` → CI creates a **GitHub Release** with `app-release.apk` in *Assets*.
 
 ---
 
-## Publicare pe GitHub (pași + comenzi)
+## Publishing on GitHub (steps + commands)
 
-Creezi un repo gol pe GitHub (ex. `harness-android`, fără README ca să nu se bată), apoi din folderul proiectului:
+Create an empty repo on GitHub (e.g. `harness-android`, without a README so there's no conflict), then from the project folder:
 
 ```bash
-# leagă repo-ul remote
-git remote add origin https://github.com/<TU>/harness-android.git
+# link the remote repo
+git remote add origin https://github.com/<YOU>/harness-android.git
 git push -u origin main
 ```
 
-**Release** — creezi un tag și CI construiește + atașează APK-ul la un Release:
+**Release** — create a tag and CI builds + attaches the APK to a Release:
 ```bash
 git tag v1.0
 git push origin v1.0
 ```
 
-**Secrets pentru semnare** (opțional, pentru release-uri semnate): în repo → *Settings → Secrets and variables → Actions → New repository secret*:
-| Secret | Valoare |
+**Signing secrets** (optional, for signed releases): in the repo → *Settings → Secrets and variables → Actions → New repository secret*:
+| Secret | Value |
 |---|---|
-| `SIGNING_STORE` | conținutul keystore-ului în **base64** (`certutil -encode release.keystore tmp.b64`, apoi lipsești conținutul) |
-| `SIGNING_STORE_PASSWORD` | parola keystore |
-| `SIGNING_KEY_ALIAS` | alias-ul cheii |
-| `SIGNING_KEY_PASSWORD` | parola cheii |
+| `SIGNING_STORE` | your keystore content in **base64** (`certutil -encode release.keystore tmp.b64`, then paste the content) |
+| `SIGNING_STORE_PASSWORD` | keystore password |
+| `SIGNING_KEY_ALIAS` | key alias |
+| `SIGNING_KEY_PASSWORD` | key password |
 
-> Fără secrets, release-ul se construiește cu cheia debug — e instalabil, dar update-urile între release-uri trebuie să aibă aceeași semnătură.
+> Without secrets, releases are built with the debug key — installable, but updates between releases must use the same signature.
 
 ---
 
-## Securitate
-DSH nu are autentificare. Portul 3080 e deschis **doar** către tailnet (regula de firewall `remoteip=100.64.0.0/10`) — oricine poate ajunge la el **doar** dacă e pe tailnet-ul tău. Nu expune portul 3080 pe rețeaua publică/LAN.
+## Security
+DSH has no authentication. Port 3080 is open **only** to the tailnet (firewall rule `remoteip=100.64.0.0/10`) — anyone can reach it **only** if they are on your tailnet. Do **not** expose port 3080 on the public network / LAN.
+
+---
+
+## Development
+Kotlin + Compose · `compileSdk 36` · Gradle 8.14.3.
+
+Build the APK:
+```bash
+./gradlew assembleRelease
+```
+The APK is written to `app/build/outputs/apk/release/app-release.apk`. Signing reads `keystore.properties` (created locally, **not committed**); CI gets it from GitHub Secrets.

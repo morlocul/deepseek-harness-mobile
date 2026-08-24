@@ -39,7 +39,7 @@ class HarnessViewModel : ViewModel() {
     private val _busy = MutableStateFlow(false)
     val busy: StateFlow<Boolean> = _busy.asStateFlow()
 
-    private val _status = MutableStateFlow("Neconectat")
+    private val _status = MutableStateFlow("Disconnected")
     val status: StateFlow<String> = _status.asStateFlow()
 
     // model switcher
@@ -100,11 +100,11 @@ class HarnessViewModel : ViewModel() {
     fun connect(onSuccess: () -> Unit = {}, onError: (String) -> Unit = {}) {
         val a = api ?: return
         viewModelScope.launch {
-            _status.value = "Conectare…"
+            _status.value = "Connecting…"
             try {
                 val info = withContext(Dispatchers.IO) { a.rpc("host.describe") }
                 hostCwd = info.optString("cwd").ifBlank { null }
-                _status.value = "Conectat: ${info.optString("hostname", "DSH")}"
+                _status.value = "Connected: ${info.optString("hostname", "DSH")}"
                 refreshSessions(onError)
                 onSuccess()
             } catch (e: Exception) {
@@ -144,7 +144,7 @@ class HarnessViewModel : ViewModel() {
                 earliestSeq = Parse.firstSeq(json)
                 _canLoadOlder.value = Parse.hasMore(json) && earliestSeq > 0 && msgs.isNotEmpty()
             } catch (e: Exception) {
-                _messages.value = listOf(MessageItem("e", "system", "Eroare la citire: ${e.message}", "", "", 0))
+                _messages.value = listOf(MessageItem("e", "system", "Error reading: ${e.message}", "", "", 0))
             } finally {
                 _busy.value = false
             }
@@ -184,10 +184,10 @@ class HarnessViewModel : ViewModel() {
                     a.rpc("session.create", payload)
                 }
                 val id = json.optString("sessionId")
-                openSession(SessionItem(id, "Conversație nouă", System.currentTimeMillis(), false))
+                openSession(SessionItem(id, "New conversation", System.currentTimeMillis(), false))
                 refreshSessions()
             } catch (e: Exception) {
-                _status.value = "Eroare creare: ${e.message}"
+                _status.value = "Error creating: ${e.message}"
             }
         }
     }
@@ -224,7 +224,7 @@ class HarnessViewModel : ViewModel() {
                 }
             } catch (e: Exception) {
                 val l = _messages.value.toMutableList()
-                l.add(MessageItem("err", "system", "Eroare trimitere: ${e.message}", "", "", System.currentTimeMillis()))
+                l.add(MessageItem("err", "system", "Error sending: ${e.message}", "", "", System.currentTimeMillis()))
                 _messages.value = l
             }
         }
@@ -259,7 +259,7 @@ class HarnessViewModel : ViewModel() {
                 _currentModel.value = ModelOption(provider, model)
                 _status.value = "Model: $model"
             } catch (e: Exception) {
-                _status.value = "Eroare model: ${e.message}"
+                _status.value = "Error selecting model: ${e.message}"
             }
         }
     }
@@ -284,7 +284,7 @@ class HarnessViewModel : ViewModel() {
                 _files.value = Parse.files(json)
                 _currentDir.value = json.optString("path").ifBlank { path }
             } catch (e: Exception) {
-                _status.value = "Eroare listare: ${e.message}"
+                _status.value = "Error listing: ${e.message}"
             }
         }
     }

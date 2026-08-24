@@ -117,7 +117,7 @@ object Parse {
             val projections = it.optJSONObject("projections")
             val title = projections?.optJSONObject("values")?.optJSONObject("title")?.optString("value")
                 ?: projections?.optJSONObject("values")?.optString("title")
-                ?: "(fără titlu)"
+                ?: "(untitled)"
             out.add(
                 SessionItem(
                     sessionId = it.optString("sessionId"),
@@ -172,7 +172,7 @@ object Parse {
                 role = "tool",
                 text = text.toString(),
                 reasoning = "",
-                tool = "🔧 rezultat tool",
+                tool = "🔧 tool result",
                 time = event.optLong("time")
             )
         }

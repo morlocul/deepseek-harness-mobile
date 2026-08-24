@@ -20,7 +20,7 @@ class UpdateReceiver : BroadcastReceiver() {
                 } catch (_: Exception) {}
             }
             else -> {
-                try { Toast.makeText(context, "Actualizare eșuată (cod $code)", Toast.LENGTH_LONG).show() } catch (_: Exception) {}
+                try { Toast.makeText(context, "Update failed (code $code)", Toast.LENGTH_LONG).show() } catch (_: Exception) {}
             }
         }
     }
