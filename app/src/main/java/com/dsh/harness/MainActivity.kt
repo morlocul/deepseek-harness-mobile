@@ -262,7 +262,7 @@ private fun SettingsScreen(context: Context) {
 
 @Composable
 private fun ConnectScreen(vm: HarnessViewModel, onConnected: () -> Unit) {
-    var url by remember { mutableStateOf("http://100.114.173.81:3080") }
+    var url by remember { mutableStateOf("") }
     val status by vm.status.collectAsState()
     val busy by vm.busy.collectAsState()
     Column(
@@ -278,9 +278,13 @@ private fun ConnectScreen(vm: HarnessViewModel, onConnected: () -> Unit) {
             value = url,
             onValueChange = { url = it },
             label = { Text("Adresă DSH") },
+            placeholder = { Text("http://<tailnet-ip>:3080") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
+        Spacer(Modifier.height(8.dp))
+        Text("Adresa instanței tale DSH din Tailscale (ex. http://100.x.y.z:3080 sau http://nume.ts.net:3080)",
+            style = MaterialTheme.typography.bodySmall, color = LocalHarness.current.muted)
         Spacer(Modifier.height(16.dp))
         Button(onClick = {
             vm.setBase(url)
@@ -419,7 +423,7 @@ private fun WorkspaceScreen(
     ) { pad ->
         if (files.isEmpty() && currentDir == null && workspaces.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(pad), contentAlignment = Alignment.Center) {
-                Text("Niciun workspace. Deschide unul din folderul deepseek harness.", color = t.muted)
+                Text("Niciun workspace disponibil.", color = t.muted)
             }
             return@Scaffold
         }

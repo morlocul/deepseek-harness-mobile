@@ -24,6 +24,7 @@ class HarnessViewModel : ViewModel() {
 
     private var api: DshApi? = null
     private var baseUrl: String = ""
+    private var hostCwd: String? = null
     private var mux: okhttp3.WebSocket? = null
 
     private val _sessions = MutableStateFlow<List<SessionItem>>(emptyList())
@@ -100,6 +101,7 @@ class HarnessViewModel : ViewModel() {
             _status.value = "Conectare…"
             try {
                 val info = withContext(Dispatchers.IO) { a.rpc("host.describe") }
+                hostCwd = info.optString("cwd").ifBlank { null }
                 _status.value = "Conectat: ${info.optString("hostname", "DSH")}"
                 refreshSessions(onError)
                 onSuccess()
@@ -174,8 +176,10 @@ class HarnessViewModel : ViewModel() {
         val a = api ?: return
         viewModelScope.launch {
             try {
+                val payload = JSONObject()
+                hostCwd?.let { payload.put("cwd", it) }
                 val json = withContext(Dispatchers.IO) {
-                    a.rpc("session.create", JSONObject().put("cwd", "G:\\deepseek harness"))
+                    a.rpc("session.create", payload)
                 }
                 val id = json.optString("sessionId")
                 openSession(SessionItem(id, "Conversație nouă", System.currentTimeMillis(), false))
