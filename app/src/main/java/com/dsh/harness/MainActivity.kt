@@ -81,12 +81,12 @@ import com.dsh.harness.data.PendingImage
 import com.dsh.harness.data.QuestionItem
 import com.dsh.harness.data.WorkspaceItem
 import com.dsh.harness.ui.LocalHarness
-import com.dsh.harness.ui.MarkdownText
 import com.dsh.harness.ui.ThemeMode
 import com.dsh.harness.ui.ThemePrefs
 import com.dsh.harness.ui.effectiveDark
 import com.dsh.harness.ui.themeColorScheme
 import com.dsh.harness.ui.tokens
+import com.mikepenz.markdown.m3.Markdown
 import kotlinx.coroutines.launch
 
 private val Dark = darkColorScheme(
@@ -635,7 +635,10 @@ private fun MessageBubble(m: MessageItem) {
                 if (mine) {
                     Text(m.text.ifEmpty { "…" }, style = MaterialTheme.typography.bodyMedium)
                 } else {
-                    MarkdownText(m.text.ifEmpty { "…" })
+                    Markdown(
+                        content = m.text.ifEmpty { "…" },
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             }
         }
