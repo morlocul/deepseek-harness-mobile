@@ -95,6 +95,8 @@ class HarnessViewModel : ViewModel() {
         api = DshApi(baseUrl)
     }
 
+    fun currentBase(): String = baseUrl
+
     fun connect(onSuccess: () -> Unit = {}, onError: (String) -> Unit = {}) {
         val a = api ?: return
         viewModelScope.launch {

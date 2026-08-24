@@ -1,8 +1,19 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
+
+// Signing comes from a local keystore.properties (not committed).
+// CI provides it via GitHub Secrets; locally you create it once.
+val keystoreProps = Properties()
+val keystorePropsFile = rootProject.file("keystore.properties")
+if (keystorePropsFile.exists()) {
+    keystorePropsFile.inputStream().use { keystoreProps.load(it) }
+}
+val hasKeystore = keystorePropsFile.exists()
 
 android {
     namespace = "com.dsh.harness"
@@ -12,26 +23,28 @@ android {
         applicationId = "com.dsh.harness"
         minSdk = 26
         targetSdk = 36
-        versionCode = 14
-        versionName = "1.13"
+        versionCode = 15
+        versionName = "1.14"
     }
 
     signingConfigs {
         create("release") {
-            storeFile = file("C:/dsh-android/release.keystore")
-            storePassword = "harness-dsh"
-            keyAlias = "dsh"
-            keyPassword = "harness-dsh"
+            if (hasKeystore) {
+                storeFile = file(keystoreProps.getProperty("storeFile"))
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias = keystoreProps.getProperty("keyAlias")
+                keyPassword = keystoreProps.getProperty("keyPassword")
+            }
         }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = if (hasKeystore) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
         }
         debug {
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 
@@ -64,4 +77,6 @@ dependencies {
     // Markdown rendering (Mikepenz), ported from gpt_mobile reference
     implementation("com.mikepenz:multiplatform-markdown-renderer-m3-android:0.41.0")
     implementation("com.mikepenz:multiplatform-markdown-renderer-code:0.41.0")
+    // QR generation for the shareable config link
+    implementation("com.google.zxing:core:3.5.3")
 }

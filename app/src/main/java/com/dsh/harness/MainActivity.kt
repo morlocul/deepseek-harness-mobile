@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.util.Base64
 import android.widget.Toast
 import android.content.Context
+import android.net.Uri
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -88,6 +89,7 @@ import com.dsh.harness.ui.LocalHarness
 import com.dsh.harness.ui.ThemeMode
 import com.dsh.harness.ui.ThemePrefs
 import com.dsh.harness.ui.effectiveDark
+import com.dsh.harness.ui.qrBitmap
 import com.dsh.harness.ui.themeColorScheme
 import com.dsh.harness.ui.tokens
 import com.mikepenz.markdown.m3.Markdown
@@ -201,7 +203,7 @@ fun HarnessApp(vm: HarnessViewModel = viewModel(), initialUrl: String? = null) {
                     }
                 ) { pad ->
                     if (showSettings) {
-                        SettingsScreen(context = context)
+                        SettingsScreen(context = context, baseUrl = vm.currentBase())
                     } else if (tab == 0) {
                         SessionsScreen(
                             vm, sessions = sessions, workspaces = workspaces,
@@ -224,7 +226,7 @@ fun HarnessApp(vm: HarnessViewModel = viewModel(), initialUrl: String? = null) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SettingsScreen(context: Context) {
+private fun SettingsScreen(context: Context, baseUrl: String) {
     val t = LocalHarness.current
     val mode = ThemePrefs.mode.value
     val options = listOf(
@@ -232,7 +234,9 @@ private fun SettingsScreen(context: Context) {
         ThemeMode.LIGHT to "Luminos",
         ThemeMode.DARK to "Întunecat"
     )
-    Column(Modifier.fillMaxSize().padding(20.dp)) {
+    val qrLink = if (baseUrl.isNotBlank()) "harness://open?url=" + Uri.encode(baseUrl) else ""
+    val qr = remember(qrLink) { if (qrLink.isNotBlank()) qrBitmap(qrLink) else null }
+    Column(Modifier.fillMaxSize().padding(20.dp).verticalScroll(rememberScrollState())) {
         Text("SETĂRI", fontFamily = FontFamily.Monospace, fontSize = 12.sp,
             letterSpacing = 3.sp, color = t.accentText, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(4.dp))
@@ -256,6 +260,23 @@ private fun SettingsScreen(context: Context) {
                     Text(label, style = MaterialTheme.typography.bodyLarge)
                 }
             }
+        }
+        Spacer(Modifier.height(24.dp))
+        Text("Configurare rapidă", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(8.dp))
+        if (baseUrl.isNotBlank()) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                qr?.let {
+                    Image(bitmap = it.asImageBitmap(), contentDescription = "QR configurare",
+                        modifier = Modifier.size(200.dp).background(Color.White))
+                }
+                Spacer(Modifier.height(8.dp))
+                Text("Scanează QR-ul cu un cititor — se deschide app-ul cu adresa\n$baseUrl\nprecompletată.",
+                    style = MaterialTheme.typography.bodySmall, color = t.muted, lineHeight = 16.sp)
+            }
+        } else {
+            Text("Conectează-te întâi ca să generezi QR-ul de configurare.",
+                style = MaterialTheme.typography.bodySmall, color = t.muted)
         }
         Spacer(Modifier.height(24.dp))
         Text("Despre", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)

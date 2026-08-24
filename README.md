@@ -4,6 +4,8 @@ Aplicație Android nativă (Kotlin + Jetpack Compose) care vorbește cu **instan
 
 > Fiecare utilizator se conectează la **propria** instanță DSH, prin **propriul** tailnet. Aplicația nu accesează PC-ul altcuiva.
 
+> **Beta.** Funcții esențiale merg, dar mai sunt muchii de slefuit. Actualizările se instalează din app (sau descarci ultimul APK din GitHub Releases).
+
 ---
 
 ## De ce ai nevoie
@@ -59,6 +61,8 @@ După script: **repornește DSH** — `Ctrl+C` în terminalul lui, apoi `ollama 
 2. Introdu adresa afișată de script (ex. `http://desktop-nume.ts.net:3080`).
 3. Apasă **Conectează-te** — vezi conversațiile, schimbi modelul (buton sus / `/model`), atașezi imagini, răsfoiești workspace-ul.
 
+**Configurare rapidă (QR):** după conectare, în **Settings (⚙)** ai un **QR de configurare**. Alt telefon îl scanează cu orice cititor de QR → se deschide Harness cu adresa **precompletată** (deep link `harness://open?url=…`), fără să tastezi nimic.
+
 ---
 
 ## Dezvoltare
@@ -68,6 +72,13 @@ Build APK:
 ./gradlew assembleRelease
 ```
 APK-ul iese în `app/build/outputs/apk/release/app-release.apk`. (Semnarea folosește un keystore local, nu se commit-uiește.)
+
+## Release / CI (GitHub Actions)
+- Fiecare push / PR construiește automat APK-ul (`.github/workflows/build.yml`).
+- Pentru un **release semnat**: în GitHub → repo → *Settings → Secrets and variables → Actions*, setează:
+  - `SIGNING_STORE` (keystore în base64), `SIGNING_STORE_PASSWORD`, `SIGNING_KEY_ALIAS`, `SIGNING_KEY_PASSWORD`.
+  - Fără secrets, build-ul folosește cheia **debug** (instalabilă, ok pentru beta).
+- Creezi un **tag** `v1.x` → CI generează un **GitHub Release** cu `app-release.apk` în *Assets*.
 
 ---
 
