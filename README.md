@@ -6,6 +6,10 @@ Aplicație Android nativă (Kotlin + Jetpack Compose) care vorbește cu **instan
 
 > **Beta.** Funcții esențiale merg, dar mai sunt muchii de slefuit. Actualizările se instalează din app (sau descarci ultimul APK din GitHub Releases).
 
+**Demo (ilustrativ):**
+
+![Harness demo](demo.gif)
+
 ---
 
 ## De ce ai nevoie
@@ -79,6 +83,34 @@ APK-ul iese în `app/build/outputs/apk/release/app-release.apk`. (Semnarea folos
   - `SIGNING_STORE` (keystore în base64), `SIGNING_STORE_PASSWORD`, `SIGNING_KEY_ALIAS`, `SIGNING_KEY_PASSWORD`.
   - Fără secrets, build-ul folosește cheia **debug** (instalabilă, ok pentru beta).
 - Creezi un **tag** `v1.x` → CI generează un **GitHub Release** cu `app-release.apk` în *Assets*.
+
+---
+
+## Publicare pe GitHub (pași + comenzi)
+
+Creezi un repo gol pe GitHub (ex. `harness-android`, fără README ca să nu se bată), apoi din folderul proiectului:
+
+```bash
+# leagă repo-ul remote
+git remote add origin https://github.com/<TU>/harness-android.git
+git push -u origin main
+```
+
+**Release** — creezi un tag și CI construiește + atașează APK-ul la un Release:
+```bash
+git tag v1.0
+git push origin v1.0
+```
+
+**Secrets pentru semnare** (opțional, pentru release-uri semnate): în repo → *Settings → Secrets and variables → Actions → New repository secret*:
+| Secret | Valoare |
+|---|---|
+| `SIGNING_STORE` | conținutul keystore-ului în **base64** (`certutil -encode release.keystore tmp.b64`, apoi lipsești conținutul) |
+| `SIGNING_STORE_PASSWORD` | parola keystore |
+| `SIGNING_KEY_ALIAS` | alias-ul cheii |
+| `SIGNING_KEY_PASSWORD` | parola cheii |
+
+> Fără secrets, release-ul se construiește cu cheia debug — e instalabil, dar update-urile între release-uri trebuie să aibă aceeași semnătură.
 
 ---
 
