@@ -91,6 +91,22 @@ if (-not $ip -and -not $hostname) {
 }
 
 Write-Host ""
+Write-Host "=== OPTIONAL: tailscale serve (HTTPS, port 443) ===" -ForegroundColor Cyan
+Write-Host "  (Nu este necesar daca folosesti metoda de mai sus; e o varianta mai sigura.)"
+$serveStatus = tailscale serve status 2>&1 | Out-String
+if ($serveStatus -match 'Serve is not enabled') {
+    Write-Host "  Serve nu e activat pe tailnet. Activeaza-l o singura data (in browser):" -ForegroundColor Yellow
+    Write-Host "    https://login.tailscale.com/f/serve" -ForegroundColor White
+    Write-Host "  Apoi reporneste acest script (sau ruleaza: tailscale serve --bg 3080)." -ForegroundColor Yellow
+} else {
+    Write-Host "  Activez serve pentru DSH (HTTPS pe 443)..." -ForegroundColor Yellow
+    tailscale serve --bg 3080 2>&1 | Out-Null
+    if ($hostname) { Write-Host "  HTTPS: https://$hostname" }
+    else { Write-Host "  HTTPS: https://<hostname>.ts.net" }
+    Write-Host "  NOTA: telefonul trebuie sa aiba incredere in certificatul tailnet (Tailscale app)." -ForegroundColor Yellow
+}
+
+Write-Host ""
 Write-Host "Pasii urmatori:" -ForegroundColor Cyan
 Write-Host "  1. Reporneste DSH:  Ctrl+C in terminalul lui, apoi  'ollama launch dsh'  (sau  'dsh web')"
 Write-Host "  2. Instaleaza aplicatia Harness pe telefon (vezi README)."

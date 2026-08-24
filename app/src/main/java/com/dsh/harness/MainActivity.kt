@@ -14,6 +14,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -52,6 +54,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -103,13 +106,15 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         ThemePrefs.load(this)
+        // deep link: harness://open?url=<encoded-address>
+        val initialUrl = intent?.data?.getQueryParameter("url")
         setContent {
             val mode = ThemePrefs.mode.value
             val isDark = effectiveDark(mode)
             val t = tokens(isDark)
             MaterialTheme(colorScheme = themeColorScheme(isDark)) {
                 CompositionLocalProvider(LocalHarness provides t) {
-                    HarnessApp()
+                    HarnessApp(initialUrl = initialUrl)
                 }
             }
         }
@@ -118,7 +123,7 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HarnessApp(vm: HarnessViewModel = viewModel()) {
+fun HarnessApp(vm: HarnessViewModel = viewModel(), initialUrl: String? = null) {
     var connected by remember { mutableStateOf(false) }
     var openSessionId by remember { mutableStateOf<String?>(null) }
     var openTitle by remember { mutableStateOf<String?>(null) }
@@ -135,7 +140,7 @@ fun HarnessApp(vm: HarnessViewModel = viewModel()) {
 
     Box(Modifier.fillMaxSize()) {
         when {
-            !connected -> ConnectScreen(vm, onConnected = {
+            !connected -> ConnectScreen(vm, initialUrl = initialUrl, onConnected = {
                 connected = true
                 vm.refreshSessions()
                 vm.loadWorkspaces()
@@ -261,18 +266,25 @@ private fun SettingsScreen(context: Context) {
 }
 
 @Composable
-private fun ConnectScreen(vm: HarnessViewModel, onConnected: () -> Unit) {
-    var url by remember { mutableStateOf("") }
+private fun ConnectScreen(vm: HarnessViewModel, initialUrl: String? = null, onConnected: () -> Unit) {
+    val t = LocalHarness.current
+    var url by remember(initialUrl) { mutableStateOf(initialUrl ?: "") }
+    var showHelp by remember { mutableStateOf(false) }
     val status by vm.status.collectAsState()
-    val busy by vm.busy.collectAsState()
+    val steps = listOf(
+        "Instalează Tailscale pe PC și telefon, conectate la același tailnet.",
+        "Pe PC, rulează: powershell -File setup-dsh-remote.ps1 (o dată).",
+        "Repornește DSH (Ctrl+C, apoi 'ollama launch dsh').",
+        "Introdu mai jos adresa afișată de script (ex. http://nume.ts.net:3080)."
+    )
     Column(
-        Modifier.fillMaxSize().padding(24.dp).imePadding(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        Modifier.fillMaxSize().padding(24.dp).imePadding().verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        Spacer(Modifier.height(24.dp))
         Text("HARNESS", fontFamily = FontFamily.Monospace, fontSize = 34.sp,
-            letterSpacing = 6.sp, fontWeight = FontWeight.Bold, color = LocalHarness.current.accent)
-        Text("DeepSeek Harness pe telefon", style = MaterialTheme.typography.bodyMedium, color = LocalHarness.current.muted)
+            letterSpacing = 6.sp, fontWeight = FontWeight.Bold, color = t.accent)
+        Text("DeepSeek Harness pe telefon", style = MaterialTheme.typography.bodyMedium, color = t.muted)
         Spacer(Modifier.height(24.dp))
         OutlinedTextField(
             value = url,
@@ -284,18 +296,34 @@ private fun ConnectScreen(vm: HarnessViewModel, onConnected: () -> Unit) {
         )
         Spacer(Modifier.height(8.dp))
         Text("Adresa instanței tale DSH din Tailscale (ex. http://100.x.y.z:3080 sau http://nume.ts.net:3080)",
-            style = MaterialTheme.typography.bodySmall, color = LocalHarness.current.muted)
+            style = MaterialTheme.typography.bodySmall, color = t.muted)
         Spacer(Modifier.height(16.dp))
-        Button(onClick = {
-            vm.setBase(url)
-            vm.connect(onSuccess = { onConnected() })
-        }, modifier = Modifier.fillMaxWidth()) {
-            Text("Conectează-te")
+        Button(
+            onClick = { vm.setBase(url); vm.connect(onSuccess = { onConnected() }) },
+            enabled = url.isNotBlank(),
+            modifier = Modifier.fillMaxWidth()
+        ) { Text("Conectează-te") }
+        Spacer(Modifier.height(8.dp))
+        TextButton(onClick = { showHelp = !showHelp }) {
+            Text(if (showHelp) "Ascunde ajutorul" else "Cum mă conectez?")
+        }
+        if (showHelp) {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = t.surface),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    steps.forEachIndexed { i, s ->
+                        Text("${i + 1}. $s", style = MaterialTheme.typography.bodySmall, lineHeight = 18.sp)
+                    }
+                }
+            }
         }
         if (status != "Neconectat") {
             Spacer(Modifier.height(12.dp))
-            Text(status, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+            Text(status, style = MaterialTheme.typography.bodySmall, color = t.muted)
         }
+        Spacer(Modifier.height(24.dp))
     }
 }
 
