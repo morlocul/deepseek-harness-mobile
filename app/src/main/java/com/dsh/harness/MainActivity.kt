@@ -13,6 +13,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -175,7 +176,10 @@ fun HarnessApp(vm: HarnessViewModel = viewModel()) {
                 Scaffold(
                     bottomBar = {
                         Row(
-                            Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface).padding(6.dp),
+                            Modifier.fillMaxWidth()
+                                .background(MaterialTheme.colorScheme.surface)
+                                .navigationBarsPadding()
+                                .padding(6.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -566,7 +570,7 @@ private fun ChatScreen(vm: HarnessViewModel, sessionId: String, title: String?, 
                 }
             }
             Row(
-                Modifier.fillMaxWidth().padding(8.dp),
+                Modifier.fillMaxWidth().navigationBarsPadding().padding(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = { pickImage.launch("image/*") }, modifier = Modifier.size(40.dp)) {
