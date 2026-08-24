@@ -1,12 +1,10 @@
 package com.dsh.harness
 
-import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageInstaller
 import android.net.Uri
-import android.os.Build
 import android.provider.Settings
+import androidx.core.content.FileProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -27,33 +25,26 @@ object UpdateManager {
         context.startActivity(intent)
     }
 
-    suspend fun download(url: String, file: File): Boolean = withContext(Dispatchers.IO) {
+    /** Downloads the APK. Returns the byte size on success, -1 on failure. */
+    suspend fun download(url: String, file: File): Long = withContext(Dispatchers.IO) {
         try {
             val req = Request.Builder().url(url).build()
+            var written = 0L
             OkHttpClient().newCall(req).execute().use { resp ->
-                if (!resp.isSuccessful) return@withContext false
-                val body = resp.body ?: return@withContext false
-                body.byteStream().use { ins -> file.outputStream().use { outs -> ins.copyTo(outs) } }
+                if (!resp.isSuccessful) return@withContext -1L
+                val body = resp.body ?: return@withContext -1L
+                body.byteStream().use { ins -> file.outputStream().use { outs -> written = ins.copyTo(outs) } }
             }
-            true
-        } catch (_: Exception) { false }
+            written
+        } catch (_: Exception) { -1L }
     }
 
-    fun install(context: Context, apk: File): Boolean = try {
-        val installer = context.packageManager.packageInstaller
-        val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
-        params.setAppPackageName(context.packageName)
-        val session = installer.openSession(installer.createSession(params))
-        val out = session.openWrite("update", 0, apk.length())
-        apk.inputStream().use { it.copyTo(out) }
-        session.fsync(out)
-        out.close()
-        val pi = PendingIntent.getBroadcast(
-            context, 1001, Intent(context, UpdateReceiver::class.java),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        session.commit(pi.intentSender)
-        session.close()
-        true
-    } catch (_: Exception) { false }
+    /** Hands the downloaded APK to the system package installer (reliable, shows the standard dialog). */
+    fun install(context: Context, apk: File) {
+        val uri = FileProvider.getUriForFile(context, context.packageName + ".fileprovider", apk)
+        val intent = Intent(Intent.ACTION_VIEW)
+        intent.setDataAndType(uri, "application/vnd.android.package-archive")
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+        context.startActivity(intent)
+    }
 }

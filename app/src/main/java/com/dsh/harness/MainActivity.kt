@@ -160,9 +160,12 @@ fun HarnessApp(vm: HarnessViewModel = viewModel()) {
                                         UpdateManager.openInstallPermissionSettings(context)
                                     } else {
                                         val file = java.io.File(context.cacheDir, "harness-update.apk")
-                                        val ok = UpdateManager.download(u.downloadUrl, file)
-                                        if (ok) { UpdateManager.install(context, file) }
-                                        else { Toast.makeText(context, "Eroare la descărcare", Toast.LENGTH_LONG).show() }
+                                        val size = UpdateManager.download(u.downloadUrl, file)
+                                        if (size > 5_000_000) {
+                                            UpdateManager.install(context, file)
+                                        } else {
+                                            Toast.makeText(context, "Descărcare incompletă ($size B)", Toast.LENGTH_LONG).show()
+                                        }
                                     }
                                 }
                             }) { Text("Actualizează", fontSize = 12.sp) }
