@@ -85,7 +85,7 @@ After the script: **restart DSH** — `Ctrl+C` in its terminal, then `ollama lau
 
 ## 5. Shared files — sending files from the PC (download / preview over Tailscale)
 
-Files you place in a **`shared`** folder in your workspace (e.g. `G:\deepseek harness\shared`) are served over Tailscale:
+Files you place in a **`shared`** folder in your workspace (e.g. `<your-workspace>\shared`) are served over Tailscale:
 
 - **In the app:** the **Shared** view (from Workspace) lists them; images preview inline, other files (PDF/DOCX/video/…) download + open.
 - **In a browser:** open `http://<host>:3080/shared/index.html` — a gallery that previews images/PDFs and gives download buttons.
