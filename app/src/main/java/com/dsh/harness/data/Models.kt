@@ -17,7 +17,8 @@ data class MessageItem(
     val text: String,
     val reasoning: String,
     val tool: String?,       // tool name + brief args for a tool call row
-    val time: Long
+    val time: Long,
+    val imageIds: List<String> = emptyList()
 )
 
 /** A pending ask_user question awaiting an answer. */
@@ -156,6 +157,18 @@ object Parse {
 
     fun hasMore(json: JSONObject): Boolean = json.optBoolean("hasMore")
 
+    private fun imageIds(content: JSONArray): List<String> {
+        val out = ArrayList<String>()
+        for (i in 0 until content.length()) {
+            val b = content.getJSONObject(i)
+            if (b.optString("type") == "image") {
+                val id = b.optJSONObject("attachment")?.optString("attachmentId")
+                if (!id.isNullOrBlank()) out.add(id)
+            }
+        }
+        return out
+    }
+
     fun userMessage(event: JSONObject): MessageItem? {
         val data = event.optJSONObject("data") ?: return null
         val message = data.optJSONObject("message") ?: return null
@@ -166,6 +179,7 @@ object Parse {
             val b = content.getJSONObject(i)
             if (b.optString("type") == "text") text.append(b.optString("text"))
         }
+        val imgs = imageIds(content)
         if (sourceKind == "tool") {
             return MessageItem(
                 id = message.optString("id"),
@@ -173,7 +187,8 @@ object Parse {
                 text = text.toString(),
                 reasoning = "",
                 tool = "🔧 tool result",
-                time = event.optLong("time")
+                time = event.optLong("time"),
+                imageIds = imgs
             )
         }
         return MessageItem(
@@ -182,7 +197,8 @@ object Parse {
             text = text.toString(),
             reasoning = "",
             tool = "",
-            time = event.optLong("time")
+            time = event.optLong("time"),
+            imageIds = imgs
         )
     }
 
@@ -204,14 +220,15 @@ object Parse {
                 }
             }
         }
-        if (text.isEmpty() && reasoning.isEmpty() && tools.isEmpty()) return null
+        if (text.isEmpty() && reasoning.isEmpty() && tools.isEmpty() && imageIds(content).isEmpty()) return null
         return MessageItem(
             id = message.optString("id"),
             role = "assistant",
             text = text.toString(),
             reasoning = reasoning.toString(),
             tool = tools.toString(),
-            time = event.optLong("time")
+            time = event.optLong("time"),
+            imageIds = imageIds(content)
         )
     }
 

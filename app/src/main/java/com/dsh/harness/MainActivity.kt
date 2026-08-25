@@ -70,6 +70,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
@@ -527,6 +528,7 @@ private fun com.dsh.harness.data.SessionItem.timeText(): String {
 @Composable
 private fun ChatScreen(vm: HarnessViewModel, sessionId: String, title: String?, onBack: () -> Unit) {
     val messages by vm.messages.collectAsState()
+    val images by vm.images.collectAsState()
     val question by vm.pendingQuestion.collectAsState()
     val models by vm.models.collectAsState()
     val currentModel by vm.currentModel.collectAsState()
@@ -610,7 +612,7 @@ private fun ChatScreen(vm: HarnessViewModel, sessionId: String, title: String?, 
                         }
                     }
                 }
-                items(messages) { m -> MessageBubble(m) }
+                items(messages) { m -> MessageBubble(m, images, vm::loadImage) }
                 question?.let { q -> item { QuestionCard(q) { id, sel, custom -> vm.answer(id, sel, custom) } } }
             }
             pendingImage?.let {
@@ -657,7 +659,7 @@ private fun ChatScreen(vm: HarnessViewModel, sessionId: String, title: String?, 
 }
 
 @Composable
-private fun MessageBubble(m: MessageItem) {
+private fun MessageBubble(m: MessageItem, images: Map<String, String>, onLoadImage: (String) -> Unit) {
     val t = LocalHarness.current
     val mine = m.role == "user"
     val bg = if (mine) t.accentSoft else t.surfaceAlt
@@ -667,6 +669,7 @@ private fun MessageBubble(m: MessageItem) {
         "tool" -> "TOOL"
         else -> "SYS"
     }
+    LaunchedEffect(m.imageIds) { m.imageIds.forEach { onLoadImage(it) } }
     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
         // ledger rail: role + accent tick
         Column(
@@ -691,6 +694,21 @@ private fun MessageBubble(m: MessageItem) {
                 }
                 if (m.reasoning.isNotBlank()) {
                     Text("💭", style = MaterialTheme.typography.bodySmall, color = if (mine) Color(0xFFCFD8FF) else t.muted)
+                }
+                m.imageIds.forEach { id ->
+                    val b64 = images[id]
+                    if (!b64.isNullOrBlank()) {
+                        val bmp = remember(id, b64) {
+                            runCatching { BitmapFactory.decodeByteArray(Base64.decode(b64, Base64.DEFAULT), 0, 0) }.getOrNull()
+                        }
+                        bmp?.let {
+                            Image(
+                                bitmap = it.asImageBitmap(),
+                                contentDescription = "image",
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).clip(RoundedCornerShape(10.dp))
+                            )
+                        }
+                    }
                 }
                 if (mine) {
                     Text(m.text.ifEmpty { "…" }, style = MaterialTheme.typography.bodyMedium)

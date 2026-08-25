@@ -60,6 +60,25 @@ class HarnessViewModel : ViewModel() {
     private val _pendingImage = MutableStateFlow<PendingImage?>(null)
     val pendingImage: StateFlow<PendingImage?> = _pendingImage.asStateFlow()
 
+    // loaded chat images keyed by attachmentId -> base64
+    private val _images = MutableStateFlow<Map<String, String>>(emptyMap())
+    val images: StateFlow<Map<String, String>> = _images.asStateFlow()
+
+    fun loadImage(attachmentId: String) {
+        val a = api ?: return
+        val sessionId = currentSessionId ?: return
+        if (_images.value.containsKey(attachmentId)) return
+        viewModelScope.launch {
+            try {
+                val json = withContext(Dispatchers.IO) {
+                    a.rpc("session.attachment", JSONObject().put("sessionId", sessionId).put("attachmentId", attachmentId))
+                }
+                val data = json.optString("data")
+                if (data.isNotBlank()) _images.value = _images.value + (attachmentId to data)
+            } catch (_: Exception) {}
+        }
+    }
+
     // auto-update
     private val _update = MutableStateFlow<UpdateInfo?>(null)
     val update: StateFlow<UpdateInfo?> = _update.asStateFlow()
