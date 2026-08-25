@@ -101,6 +101,7 @@ import com.dsh.harness.data.QuestionItem
 import com.dsh.harness.data.WorkspaceItem
 import com.dsh.harness.ui.HarnessTokens
 import com.dsh.harness.ui.LocalHarness
+import com.dsh.harness.ui.ServerPrefs
 import com.dsh.harness.ui.ThemeMode
 import com.dsh.harness.ui.ThemePrefs
 import com.dsh.harness.ui.effectiveDark
@@ -336,7 +337,7 @@ private fun SettingsScreen(vm: HarnessViewModel, context: Context, baseUrl: Stri
 @Composable
 private fun ConnectScreen(vm: HarnessViewModel, initialUrl: String? = null, onConnected: () -> Unit) {
     val t = LocalHarness.current
-    var url by remember(initialUrl) { mutableStateOf(initialUrl ?: "") }
+    var url by remember(initialUrl) { mutableStateOf(initialUrl ?: ServerPrefs.load(context)) }
     var showHelp by remember { mutableStateOf(false) }
     val status by vm.status.collectAsState()
     val steps = listOf(
@@ -367,7 +368,7 @@ private fun ConnectScreen(vm: HarnessViewModel, initialUrl: String? = null, onCo
             style = MaterialTheme.typography.bodySmall, color = t.muted)
         Spacer(Modifier.height(16.dp))
         Button(
-            onClick = { vm.setBase(url); vm.connect(onSuccess = { onConnected() }) },
+            onClick = { ServerPrefs.save(context, url); vm.setBase(url); vm.connect(onSuccess = { onConnected() }) },
             enabled = url.isNotBlank(),
             modifier = Modifier.fillMaxWidth()
         ) { Text("Connect") }

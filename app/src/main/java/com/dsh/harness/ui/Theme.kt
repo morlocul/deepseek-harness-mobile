@@ -105,6 +105,21 @@ object ThemePrefs {
     }
 }
 
+/** Persists the last DSH server address so the Connect screen pre-fills it. */
+object ServerPrefs {
+    private const val PREFS = "harness_prefs"
+    private const val KEY_URL = "server_url"
+
+    fun save(context: Context, url: String) {
+        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit().putString(KEY_URL, url).apply()
+    }
+
+    fun load(context: Context): String =
+        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getString(KEY_URL, "") ?: ""
+}
+
 @Composable
 fun effectiveDark(mode: ThemeMode): Boolean = when (mode) {
     ThemeMode.SYSTEM -> isSystemInDarkTheme()
