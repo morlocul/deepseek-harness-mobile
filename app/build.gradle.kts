@@ -23,8 +23,8 @@ android {
         applicationId = "com.dsh.harness"
         minSdk = 26
         targetSdk = 36
-        versionCode = 22
-        versionName = "1.21"
+        versionCode = 23
+        versionName = "1.22"
     }
 
     signingConfigs {

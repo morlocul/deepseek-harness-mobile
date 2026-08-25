@@ -682,7 +682,8 @@ private fun ChatScreen(vm: HarnessViewModel, sessionId: String, title: String?, 
     // Open at the newest messages; also follow when the user sends a message.
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty() && (justOpened || messages.last().role == "user")) {
-            listState.scrollToItem(messages.lastIndex)
+            kotlinx.coroutines.delay(80)
+            listState.animateScrollToItem(messages.lastIndex)
             justOpened = false
         }
     }
