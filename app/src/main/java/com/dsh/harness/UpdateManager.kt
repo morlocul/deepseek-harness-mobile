@@ -16,6 +16,9 @@ object UpdateManager {
     fun installedCode(context: Context): Int =
         try { context.packageManager.getPackageInfo(context.packageName, 0).versionCode } catch (_: Exception) { 0 }
 
+    fun installedVersionName(context: Context): String =
+        try { context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "" } catch (_: Exception) { "" }
+
     fun needsInstallPermission(context: Context): Boolean =
         context.packageManager.canRequestPackageInstalls().not()
 

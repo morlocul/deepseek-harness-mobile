@@ -226,7 +226,7 @@ fun HarnessApp(vm: HarnessViewModel = viewModel(), initialUrl: String? = null) {
                     } else if (tab == 1) {
                         WorkspaceScreen(vm, workspaces = workspaces, onShared = { showShared = true }, contentPadding = pad)
                     } else {
-                        SettingsScreen(context = context, baseUrl = vm.currentBase(), onDisconnect = { connected = false; tab = 0 })
+                        SettingsScreen(vm = vm, context = context, baseUrl = vm.currentBase(), onDisconnect = { connected = false; tab = 0 })
                     }
                 }
             }
@@ -236,7 +236,7 @@ fun HarnessApp(vm: HarnessViewModel = viewModel(), initialUrl: String? = null) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SettingsScreen(context: Context, baseUrl: String, onDisconnect: () -> Unit) {
+private fun SettingsScreen(vm: HarnessViewModel, context: Context, baseUrl: String, onDisconnect: () -> Unit) {
     val t = LocalHarness.current
     val mode = ThemePrefs.mode.value
     val options = listOf(
@@ -246,6 +246,8 @@ private fun SettingsScreen(context: Context, baseUrl: String, onDisconnect: () -
     )
     val qrLink = if (baseUrl.isNotBlank()) "harness://open?url=" + Uri.encode(baseUrl) else ""
     val qr = remember(qrLink) { if (qrLink.isNotBlank()) qrBitmap(qrLink) else null }
+    val githubUpdate by vm.githubUpdate.collectAsState()
+    val scope = rememberCoroutineScope()
     Column(Modifier.fillMaxSize().padding(20.dp).verticalScroll(rememberScrollState())) {
         Text("SETTINGS", fontFamily = FontFamily.Monospace, fontSize = 12.sp,
             letterSpacing = 3.sp, color = t.accentText, fontWeight = FontWeight.Bold)
@@ -269,6 +271,30 @@ private fun SettingsScreen(context: Context, baseUrl: String, onDisconnect: () -
         OutlinedButton(onClick = onDisconnect, modifier = Modifier.fillMaxWidth()) {
             Text("Change server / reconnect")
         }
+        Spacer(Modifier.height(20.dp))
+        Text("Updates", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(8.dp))
+        githubUpdate?.let { g ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Version ${g.versionName} available (GitHub)", style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f))
+                Button(onClick = {
+                    scope.launch {
+                        val file = java.io.File(context.cacheDir, "harness-update.apk")
+                        val size = UpdateManager.download(g.downloadUrl, file)
+                        if (size > 5_000_000) UpdateManager.install(context, file)
+                        else Toast.makeText(context, "Incomplete download ($size B)", Toast.LENGTH_LONG).show()
+                    }
+                }) { Text("⬇ Update", fontSize = 12.sp) }
+            }
+        } ?: run {
+            Text("Installed: v${UpdateManager.installedVersionName(context)}",
+                style = MaterialTheme.typography.bodySmall, color = t.muted)
+        }
+        OutlinedButton(
+            onClick = { vm.checkGitHubUpdate(UpdateManager.installedVersionName(context)) },
+            modifier = Modifier.fillMaxWidth().padding(top = 6.dp)
+        ) { Text("Check for updates (GitHub)") }
         Spacer(Modifier.height(20.dp))
         Text("Theme", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(12.dp))

@@ -142,6 +142,48 @@ class HarnessViewModel : ViewModel() {
         }
     }
 
+    // latest GitHub release available (checked from Settings)
+    private val _githubUpdate = MutableStateFlow<UpdateInfo?>(null)
+    val githubUpdate: StateFlow<UpdateInfo?> = _githubUpdate.asStateFlow()
+
+    fun checkGitHubUpdate(installedVersionName: String) {
+        viewModelScope.launch {
+            try {
+                val url = "https://api.github.com/repos/morlocul/deepseek-harness-mobile/releases/latest"
+                val text = withContext(Dispatchers.IO) {
+                    okhttp3.OkHttpClient().newCall(okhttp3.Request.Builder().url(url)
+                        .header("Accept", "application/vnd.github+json").build())
+                        .execute().use { resp -> if (resp.isSuccessful) resp.body?.string() else null }
+                } ?: return@launch
+                val j = JSONObject(text)
+                val tag = j.optString("tag_name").removePrefix("v")
+                val assets = j.optJSONArray("assets")
+                var apkUrl = ""
+                for (i in 0 until (assets?.length() ?: 0)) {
+                    val a = assets.getJSONObject(i)
+                    if (a.optString("name").endsWith(".apk")) { apkUrl = a.optString("browser_download_url"); break }
+                }
+                if (compareVersion(tag, installedVersionName) > 0 && apkUrl.isNotBlank()) {
+                    _githubUpdate.value = UpdateInfo(0, tag, apkUrl)
+                } else {
+                    _githubUpdate.value = null
+                }
+            } catch (_: Exception) { _githubUpdate.value = null }
+        }
+    }
+
+    private fun compareVersion(a: String, b: String): Int {
+        val as_ = a.split(".").mapNotNull { it.toIntOrNull() }
+        val bs = b.split(".").mapNotNull { it.toIntOrNull() }
+        val n = maxOf(as_.size, bs.size)
+        for (i in 0 until n) {
+            val x = if (i < as_.size) as_[i] else 0
+            val y = if (i < bs.size) bs[i] else 0
+            if (x != y) return if (x > y) 1 else -1
+        }
+        return 0
+    }
+
     fun setBase(url: String) {
         baseUrl = url.trim().trimEnd('/')
         api = DshApi(baseUrl)
