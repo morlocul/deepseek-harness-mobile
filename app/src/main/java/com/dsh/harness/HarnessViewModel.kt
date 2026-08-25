@@ -114,7 +114,11 @@ class HarnessViewModel : ViewModel() {
 
     private var currentSessionId: String? = null
     private var streaming: MutableList<String> = ArrayList() // deltas of current assistant msg
+    private var reasoningStream: MutableList<String> = ArrayList()
     private var earliestSeq = 0
+
+    private val _thinking = MutableStateFlow(false)
+    val thinking: StateFlow<Boolean> = _thinking.asStateFlow()
 
     private val _canLoadOlder = MutableStateFlow(false)
     val canLoadOlder: StateFlow<Boolean> = _canLoadOlder.asStateFlow()
@@ -388,15 +392,23 @@ class HarnessViewModel : ViewModel() {
             "user/message" -> Parse.userMessage(event)?.let { list.add(it) }
             "assistant/chunk" -> {
                 val chunk = event.optJSONObject("data")?.optJSONObject("chunk")
-                if (chunk?.optString("type") == "text-delta") {
+                val ctype = chunk?.optString("type")
+                if (ctype == "text-delta") {
+                    _thinking.value = true
                     streaming.add(chunk.optString("text"))
-                    upsertStreamingText(list, streaming.joinToString(""))
+                    upsertStreaming(list, streaming.joinToString(""), reasoningStream.joinToString(""))
+                } else if (ctype == "reasoning-delta") {
+                    _thinking.value = true
+                    reasoningStream.add(chunk.optString("text"))
+                    upsertStreaming(list, streaming.joinToString(""), reasoningStream.joinToString(""))
                 }
             }
             "assistant/message" -> {
                 val m = Parse.assistantMessage(event)
+                _thinking.value = false
                 if (m != null) {
                     streaming = ArrayList()
+                    reasoningStream = ArrayList()
                     // drop the streaming placeholder if present
                     if (list.isNotEmpty() && list.last().id.startsWith("stream-")) list.removeAt(list.lastIndex)
                     list.add(m)
@@ -406,11 +418,11 @@ class HarnessViewModel : ViewModel() {
         _messages.value = list
     }
 
-    private fun upsertStreamingText(list: MutableList<MessageItem>, text: String) {
+    private fun upsertStreaming(list: MutableList<MessageItem>, text: String, reasoning: String) {
         if (list.isNotEmpty() && list.last().id.startsWith("stream-")) {
-            list[list.lastIndex] = list.last().copy(text = text)
+            list[list.lastIndex] = list.last().copy(text = text, reasoning = reasoning)
         } else {
-            list.add(MessageItem("stream-${System.currentTimeMillis()}", "assistant", text, "", "", System.currentTimeMillis()))
+            list.add(MessageItem("stream-${System.currentTimeMillis()}", "assistant", text, reasoning, "", System.currentTimeMillis()))
         }
     }
 }

@@ -625,6 +625,7 @@ private fun com.dsh.harness.data.SessionItem.timeText(): String {
 private fun ChatScreen(vm: HarnessViewModel, sessionId: String, title: String?, onBack: () -> Unit) {
     val messages by vm.messages.collectAsState()
     val images by vm.images.collectAsState()
+    val thinking by vm.thinking.collectAsState()
     val question by vm.pendingQuestion.collectAsState()
     val models by vm.models.collectAsState()
     val currentModel by vm.currentModel.collectAsState()
@@ -709,6 +710,14 @@ private fun ChatScreen(vm: HarnessViewModel, sessionId: String, title: String?, 
                     }
                 }
                 items(messages) { m -> MessageBubble(m, images, vm::loadImage) }
+                if (thinking) {
+                    item {
+                        Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.size(14.dp).background(Color.Transparent))
+                            Text("💭 thinking…", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                }
                 question?.let { q -> item { QuestionCard(q) { id, sel, custom -> vm.answer(id, sel, custom) } } }
             }
             pendingImage?.let {
@@ -789,7 +798,8 @@ private fun MessageBubble(m: MessageItem, images: Map<String, String>, onLoadIma
                     Text(m.tool, style = MaterialTheme.typography.bodySmall, color = if (mine) Color(0xFFDCE4FF) else t.accentText)
                 }
                 if (m.reasoning.isNotBlank()) {
-                    Text("💭", style = MaterialTheme.typography.bodySmall, color = if (mine) Color(0xFFCFD8FF) else t.muted)
+                    Text("💭 " + m.reasoning.trim(), style = MaterialTheme.typography.bodySmall,
+                        color = if (mine) Color(0xFFCFD8FF) else t.muted, maxLines = 8, overflow = TextOverflow.Ellipsis)
                 }
                 m.imageIds.forEach { id ->
                     val b64 = images[id]
