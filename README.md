@@ -62,10 +62,18 @@ After the script: **restart DSH** — `Ctrl+C` in its terminal, then `ollama lau
 
 ## 3. Connect
 1. Open **Harness**.
-2. Enter the address shown by the script (e.g. `http://host.ts.net:3080`).
-3. Tap **Connect** — you'll see your conversations, switch models (top button / `/model`), attach images, browse the workspace.
+2. Enter the address shown by the script (e.g. `http://host.ts.net:3080`), **or scan the connect QR** the script generates.
+3. Tap **Connect** — you'll see your conversations, switch models (top button / `/model`), attach images, browse the workspace and Shared files.
 
-**Quick setup (QR):** after connecting, open **Settings (⚙)** → you'll find a **setup QR**. Scan it with any reader on another phone → Harness opens with the address **pre-filled** (deep link `harness://open?url=…`), no typing needed.
+**Quick setup (QR):** the `setup-dsh-remote.ps1` script generates a **per-user QR** (saved as `dsh-connect-qr.png` in your home folder). Scan it with the phone (Harness installed) → the app opens with your address pre-filled (deep link `harness://open?url=…`). No typing.
+
+---
+
+## 4. Shared files (download / preview over Tailscale)
+Put files in a **`shared`** folder in your workspace (e.g. `G:\deepseek harness\shared`). They become downloadable/previewable:
+- **In the app:** the **Shared** tab (from Workspace) lists them; images preview inline, other files download + open.
+- **In a browser:** open `http://<host>:3080/shared/index.html` — a gallery that previews images/PDFs and gives download buttons.
+- Any file is also reachable at `http://<host>:3080/shared/<filename>` from any device on the tailnet.
 
 ---
 

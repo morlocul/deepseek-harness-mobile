@@ -90,6 +90,36 @@ if (-not $ip -and -not $hostname) {
     Write-Host "  Could not get a Tailscale address. Make sure Tailscale is connected." -ForegroundColor Yellow
 }
 
+# --- 4b. Generate a per-user connect QR (best effort) ------------------------
+$appAddress = if ($ip) { "http://${ip}:3080" } elseif ($hostname) { "http://${hostname}:3080" }
+if ($appAddress) {
+    $qrLink = "harness://open?url=$appAddress"
+    $qrFile = Join-Path $env:USERPROFILE "dsh-connect-qr.png"
+    $temp = Join-Path $env:TEMP "dsh-qr-gen.py"
+    $pythonCode = @"
+import segno
+qr = segno.make('$qrLink', error='h')
+qr.save(r'$qrFile', scale=10, border=4)
+"@
+    python -c "import segno" 2>$null
+    if ($LASTEXITCODE -eq 0) {
+        Set-Content -Path $temp -Value $pythonCode -Encoding utf8
+        python $temp
+        Remove-Item $temp -ErrorAction SilentlyContinue
+        if (Test-Path $qrFile) {
+            Write-Host ""
+            Write-Host "=== QR pentru instalare rapida ===" -ForegroundColor Cyan
+            Write-Host "  Deschide acest fisier si scaneaza-l cu telefonul (Harness instalat):" -ForegroundColor Green
+            Write-Host "  $qrFile" -ForegroundColor White
+            Write-Host "  -> se deschide Harness cu adresa '$appAddress' precompletata." -ForegroundColor Green
+        } else {
+            Write-Host "  QR generation failed; use the address above directly." -ForegroundColor Yellow
+        }
+    } else {
+        Write-Host "  (Optional) Ruleaza 'pip install segno' ca sa generezi un QR de conectare." -ForegroundColor Yellow
+    }
+}
+
 Write-Host ""
 Write-Host "=== OPTIONAL: tailscale serve (HTTPS, port 443) ===" -ForegroundColor Cyan
 Write-Host "  (Not needed if you use the method above; it is a more secure option.)"
