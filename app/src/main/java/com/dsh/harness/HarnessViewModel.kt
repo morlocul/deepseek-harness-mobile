@@ -297,6 +297,8 @@ class HarnessViewModel : ViewModel() {
         _messages.value = list
         _pendingImage.value = null
         streaming = ArrayList()
+        reasoningStream = ArrayList()
+        _thinking.value = true
         viewModelScope.launch {
             try {
                 val content = org.json.JSONArray()
