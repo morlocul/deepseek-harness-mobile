@@ -44,7 +44,9 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -135,8 +137,8 @@ fun HarnessApp(vm: HarnessViewModel = viewModel(), initialUrl: String? = null) {
     var connected by remember { mutableStateOf(false) }
     var openSessionId by remember { mutableStateOf<String?>(null) }
     var openTitle by remember { mutableStateOf<String?>(null) }
-    var tab by remember { mutableStateOf(0) } // 0=conversations 1=workspace
-    var showSettings by remember { mutableStateOf(false) }
+    var tab by remember { mutableStateOf(0) } // 0=chats 1=workspace 2=settings
+    var showShared by remember { mutableStateOf(false) }
     val sessions by vm.sessions.collectAsState()
     val workspaces by vm.workspaces.collectAsState()
     val update by vm.update.collectAsState()
@@ -144,7 +146,8 @@ fun HarnessApp(vm: HarnessViewModel = viewModel(), initialUrl: String? = null) {
     val scope = rememberCoroutineScope()
 
     BackHandler(enabled = openSessionId != null) { openSessionId = null; openTitle = null }
-    BackHandler(enabled = openSessionId == null && showSettings) { showSettings = false }
+    BackHandler(enabled = showShared) { showShared = false }
+    val t = LocalHarness.current
 
     Box(Modifier.fillMaxSize()) {
         when {
@@ -193,26 +196,23 @@ fun HarnessApp(vm: HarnessViewModel = viewModel(), initialUrl: String? = null) {
                                 .background(MaterialTheme.colorScheme.surface)
                                 .navigationBarsPadding()
                                 .padding(6.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            OutlinedButton(onClick = { tab = 0; showSettings = false }, modifier = Modifier.weight(1f)) {
-                                Text("Chats", fontSize = 13.sp)
+                            IconButton(onClick = { tab = 0; showShared = false }) {
+                                Icon(Icons.Filled.Chat, contentDescription = "Chats", tint = if (tab == 0) t.accent else t.muted)
                             }
-                            OutlinedButton(onClick = { tab = 1; showSettings = false }, modifier = Modifier.weight(1f)) {
-                                Text("Workspace", fontSize = 13.sp)
+                            IconButton(onClick = { tab = 1; showShared = false }) {
+                                Icon(Icons.Filled.Folder, contentDescription = "Workspace", tint = if (tab == 1) t.accent else t.muted)
                             }
-                            OutlinedButton(onClick = { tab = 2; showSettings = false; vm.loadSharedFiles() }, modifier = Modifier.weight(1f)) {
-                                Text("Shared", fontSize = 13.sp)
-                            }
-                            OutlinedButton(onClick = { showSettings = !showSettings }, modifier = Modifier.weight(0.6f)) {
-                                Text("⚙", fontSize = 14.sp)
+                            IconButton(onClick = { tab = 2; showShared = false }) {
+                                Icon(Icons.Filled.Settings, contentDescription = "Settings", tint = if (tab == 2) t.accent else t.muted)
                             }
                         }
                     }
                 ) { pad ->
-                    if (showSettings) {
-                        SettingsScreen(context = context, baseUrl = vm.currentBase())
+                    if (showShared) {
+                        SharedScreen(vm, onBack = { showShared = false }, contentPadding = pad)
                     } else if (tab == 0) {
                         SessionsScreen(
                             vm, sessions = sessions, workspaces = workspaces,
@@ -220,14 +220,13 @@ fun HarnessApp(vm: HarnessViewModel = viewModel(), initialUrl: String? = null) {
                                 vm.openSession(it)
                                 openSessionId = it.sessionId
                                 openTitle = it.title
-                                showSettings = false
                             },
                             contentPadding = pad
                         )
-                    } else if (tab == 2) {
-                        SharedScreen(vm, contentPadding = pad)
+                    } else if (tab == 1) {
+                        WorkspaceScreen(vm, workspaces = workspaces, onShared = { showShared = true }, contentPadding = pad)
                     } else {
-                        WorkspaceScreen(vm, workspaces = workspaces, contentPadding = pad)
+                        SettingsScreen(context = context, baseUrl = vm.currentBase(), onDisconnect = { connected = false; tab = 0 })
                     }
                 }
             }
@@ -237,7 +236,7 @@ fun HarnessApp(vm: HarnessViewModel = viewModel(), initialUrl: String? = null) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SettingsScreen(context: Context, baseUrl: String) {
+private fun SettingsScreen(context: Context, baseUrl: String, onDisconnect: () -> Unit) {
     val t = LocalHarness.current
     val mode = ThemePrefs.mode.value
     val options = listOf(
@@ -250,7 +249,27 @@ private fun SettingsScreen(context: Context, baseUrl: String) {
     Column(Modifier.fillMaxSize().padding(20.dp).verticalScroll(rememberScrollState())) {
         Text("SETTINGS", fontFamily = FontFamily.Monospace, fontSize = 12.sp,
             letterSpacing = 3.sp, color = t.accentText, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(12.dp))
+        Text("Server", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        if (baseUrl.isNotBlank()) {
+            Spacer(Modifier.height(6.dp))
+            Text(baseUrl, style = MaterialTheme.typography.bodyMedium, color = t.accentText,
+                maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        Spacer(Modifier.height(8.dp))
+        qr?.let {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Image(bitmap = it.asImageBitmap(), contentDescription = "setup QR",
+                    modifier = Modifier.size(160.dp).background(Color.White))
+                Spacer(Modifier.height(4.dp))
+                Text("Scan to connect another device", style = MaterialTheme.typography.bodySmall, color = t.muted)
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        OutlinedButton(onClick = onDisconnect, modifier = Modifier.fillMaxWidth()) {
+            Text("Change server / reconnect")
+        }
+        Spacer(Modifier.height(20.dp))
         Text("Theme", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(12.dp))
         options.forEach { (m, label) ->
@@ -273,22 +292,6 @@ private fun SettingsScreen(context: Context, baseUrl: String) {
             }
         }
         Spacer(Modifier.height(24.dp))
-        Text("Quick setup", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(8.dp))
-        if (baseUrl.isNotBlank()) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                qr?.let {
-                    Image(bitmap = it.asImageBitmap(), contentDescription = "setup QR",
-                        modifier = Modifier.size(200.dp).background(Color.White))
-                }
-                Spacer(Modifier.height(8.dp))
-                Text("Scan the QR with any reader — the app opens with\n$baseUrl\npre-filled.",
-                    style = MaterialTheme.typography.bodySmall, color = t.muted, lineHeight = 16.sp)
-            }
-        } else {
-            Text("Connect first to generate the setup QR.",
-                style = MaterialTheme.typography.bodySmall, color = t.muted)
-        }
         Spacer(Modifier.height(24.dp))
         Text("About", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(6.dp))
@@ -443,6 +446,7 @@ private fun SessionsScreen(
 private fun WorkspaceScreen(
     vm: HarnessViewModel,
     workspaces: List<WorkspaceItem>,
+    onShared: () -> Unit,
     contentPadding: PaddingValues
 ) {
     val files by vm.files.collectAsState()
@@ -476,6 +480,9 @@ private fun WorkspaceScreen(
                         IconButton(onClick = { vm.listDir(workspaces.first().path) }) {
                             Icon(Icons.Filled.Folder, contentDescription = "Open workspace", tint = t.accentText)
                         }
+                    }
+                    IconButton(onClick = { onShared() }) {
+                        Icon(Icons.Filled.Chat, contentDescription = "Shared files", tint = t.accentText)
                     }
                 }
             )
@@ -525,14 +532,22 @@ private fun looksLikeDir(name: String): Boolean = !name.contains(".") || name.en
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SharedScreen(vm: HarnessViewModel, contentPadding: PaddingValues) {
+private fun SharedScreen(vm: HarnessViewModel, onBack: () -> Unit, contentPadding: PaddingValues) {
     val t = LocalHarness.current
     val files by vm.sharedFiles.collectAsState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    LaunchedEffect(Unit) { vm.loadSharedFiles() }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Shared files") }) }
+        topBar = {
+            TopAppBar(
+                title = { Text("Shared files") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                }
+            )
+        }
     ) { pad ->
         if (files.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(pad), contentAlignment = Alignment.Center) {
