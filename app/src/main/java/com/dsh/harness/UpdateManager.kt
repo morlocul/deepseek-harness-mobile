@@ -28,15 +28,21 @@ object UpdateManager {
         context.startActivity(intent)
     }
 
-    /** Downloads the APK. Returns the byte size on success, -1 on failure. */
+    /** Downloads the APK. Returns the byte size on success, -1 on failure/truncation. */
     suspend fun download(url: String, file: File): Long = withContext(Dispatchers.IO) {
         try {
+            val client = OkHttpClient.Builder()
+                .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+                .readTimeout(120, java.util.concurrent.TimeUnit.SECONDS)
+                .build()
             val req = Request.Builder().url(url).build()
             var written = 0L
-            OkHttpClient().newCall(req).execute().use { resp ->
+            client.newCall(req).execute().use { resp ->
                 if (!resp.isSuccessful) return@withContext -1L
                 val body = resp.body ?: return@withContext -1L
+                val expected = body.contentLength() // -1 if unknown
                 body.byteStream().use { ins -> file.outputStream().use { outs -> written = ins.copyTo(outs) } }
+                if (expected > 0 && written != expected) return@withContext -1L
             }
             written
         } catch (_: Exception) { -1L }
