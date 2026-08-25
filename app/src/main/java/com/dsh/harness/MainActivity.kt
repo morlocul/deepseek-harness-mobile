@@ -1,10 +1,14 @@
 package com.dsh.harness
 
 import android.os.Bundle
+import android.os.Environment
 import android.util.Base64
 import android.widget.Toast
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
+import android.graphics.Bitmap
+import java.io.File
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -86,6 +90,7 @@ import com.dsh.harness.data.MessageItem
 import com.dsh.harness.data.PendingImage
 import com.dsh.harness.data.QuestionItem
 import com.dsh.harness.data.WorkspaceItem
+import com.dsh.harness.ui.HarnessTokens
 import com.dsh.harness.ui.LocalHarness
 import com.dsh.harness.ui.ThemeMode
 import com.dsh.harness.ui.ThemePrefs
@@ -197,7 +202,10 @@ fun HarnessApp(vm: HarnessViewModel = viewModel(), initialUrl: String? = null) {
                             OutlinedButton(onClick = { tab = 1; showSettings = false }, modifier = Modifier.weight(1f)) {
                                 Text("Workspace", fontSize = 13.sp)
                             }
-                            OutlinedButton(onClick = { showSettings = !showSettings }, modifier = Modifier.weight(0.7f)) {
+                            OutlinedButton(onClick = { tab = 2; showSettings = false; vm.loadSharedFiles() }, modifier = Modifier.weight(1f)) {
+                                Text("Shared", fontSize = 13.sp)
+                            }
+                            OutlinedButton(onClick = { showSettings = !showSettings }, modifier = Modifier.weight(0.6f)) {
                                 Text("⚙", fontSize = 14.sp)
                             }
                         }
@@ -216,6 +224,8 @@ fun HarnessApp(vm: HarnessViewModel = viewModel(), initialUrl: String? = null) {
                             },
                             contentPadding = pad
                         )
+                    } else if (tab == 2) {
+                        SharedScreen(vm, contentPadding = pad)
                     } else {
                         WorkspaceScreen(vm, workspaces = workspaces, contentPadding = pad)
                     }
@@ -512,6 +522,92 @@ private fun WorkspaceScreen(
 }
 
 private fun looksLikeDir(name: String): Boolean = !name.contains(".") || name.endsWith("/")
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SharedScreen(vm: HarnessViewModel, contentPadding: PaddingValues) {
+    val t = LocalHarness.current
+    val files by vm.sharedFiles.collectAsState()
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    Scaffold(
+        topBar = { TopAppBar(title = { Text("Shared files") }) }
+    ) { pad ->
+        if (files.isEmpty()) {
+            Box(Modifier.fillMaxSize().padding(pad), contentAlignment = Alignment.Center) {
+                Text("No shared files. Files in <workspace>\\shared appear here.", color = t.muted)
+            }
+            return@Scaffold
+        }
+        LazyColumn(Modifier.fillMaxSize().padding(pad), contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            items(files) { f -> SharedFileCard(vm, f.name, t, context, scope) }
+        }
+    }
+}
+
+@Composable
+private fun SharedFileCard(
+    vm: HarnessViewModel, name: String, t: HarnessTokens, context: Context, scope: kotlinx.coroutines.CoroutineScope
+) {
+    val isImage = name.endsWith(".png") || name.endsWith(".jpg") || name.endsWith(".jpeg") ||
+        name.endsWith(".gif") || name.endsWith(".webp")
+    var bmp by remember(name) { mutableStateOf<Bitmap?>(null) }
+    if (isImage && bmp == null) {
+        LaunchedEffect(name) {
+            val b = vm.fetchSharedFile(name)
+            bmp = b?.let { runCatching { BitmapFactory.decodeByteArray(it, 0, it.size) }.getOrNull() }
+        }
+    }
+    Card(colors = CardDefaults.cardColors(containerColor = t.surface), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                Button(onClick = {
+                    scope.launch {
+                        val bytes = vm.fetchSharedFile(name)
+                        if (bytes != null) {
+                            val dir = File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "shared")
+                            dir.mkdirs()
+                            val file = File(dir, name)
+                            file.writeBytes(bytes)
+                            try {
+                                val uri = androidx.core.content.FileProvider.getUriForFile(context, context.packageName + ".fileprovider", file)
+                                val intent = Intent(Intent.ACTION_VIEW).setDataAndType(uri, mimeOf(name))
+                                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+                                context.startActivity(intent)
+                            } catch (_: Exception) {
+                                Toast.makeText(context, "Saved to ${file.absolutePath}", Toast.LENGTH_LONG).show()
+                            }
+                        } else {
+                            Toast.makeText(context, "Download failed", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }) { Text("⬇", fontSize = 14.sp) }
+            }
+            if (bmp != null) {
+                Image(bitmap = bmp!!.asImageBitmap(), contentDescription = name,
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp).clip(RoundedCornerShape(10.dp)))
+            } else if (isImage) {
+                Text("loading preview…", style = MaterialTheme.typography.bodySmall, color = t.muted)
+            }
+        }
+    }
+}
+
+private fun mimeOf(name: String): String = when {
+    name.endsWith(".pdf") -> "application/pdf"
+    name.endsWith(".png") -> "image/png"
+    name.endsWith(".jpg") || name.endsWith(".jpeg") -> "image/jpeg"
+    name.endsWith(".gif") -> "image/gif"
+    name.endsWith(".webp") -> "image/webp"
+    name.endsWith(".html") -> "text/html"
+    name.endsWith(".txt") -> "text/plain"
+    name.endsWith(".docx") -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    name.endsWith(".mp4") -> "video/mp4"
+    else -> "application/octet-stream"
+}
 
 private fun com.dsh.harness.data.SessionItem.timeText(): String {
     val now = System.currentTimeMillis()

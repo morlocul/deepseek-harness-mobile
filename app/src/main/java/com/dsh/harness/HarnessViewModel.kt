@@ -79,6 +79,35 @@ class HarnessViewModel : ViewModel() {
         }
     }
 
+    // ---- Shared files (download/preview over Tailscale) ----
+    val sharedPath: String? get() = hostCwd?.let { "$it\\shared" }
+
+    private val _sharedFiles = MutableStateFlow<List<FileItem>>(emptyList())
+    val sharedFiles: StateFlow<List<FileItem>> = _sharedFiles.asStateFlow()
+
+    fun loadSharedFiles() {
+        val a = api ?: return
+        val path = sharedPath ?: return
+        viewModelScope.launch {
+            try {
+                val json = withContext(Dispatchers.IO) { a.rpc("host.listDirectory", JSONObject().put("path", path)) }
+                _sharedFiles.value = Parse.files(json)
+            } catch (_: Exception) {}
+        }
+    }
+
+    fun sharedFileUrl(name: String): String = "$baseUrl/shared/$name"
+
+    /** Fetches a shared file's bytes over Tailscale. */
+    suspend fun fetchSharedFile(name: String): ByteArray? = withContext(Dispatchers.IO) {
+        try {
+            val req = okhttp3.Request.Builder().url(sharedFileUrl(name)).build()
+            okhttp3.OkHttpClient().newCall(req).execute().use { resp ->
+                if (resp.isSuccessful) resp.body?.bytes() else null
+            }
+        } catch (_: Exception) { null }
+    }
+
     // auto-update
     private val _update = MutableStateFlow<UpdateInfo?>(null)
     val update: StateFlow<UpdateInfo?> = _update.asStateFlow()
