@@ -740,7 +740,7 @@ private fun ChatScreen(vm: HarnessViewModel, sessionId: String, title: String?, 
             LazyColumn(
                 state = listState,
                 modifier = Modifier.weight(1f).fillMaxWidth(),
-                contentPadding = PaddingValues(12.dp),
+                contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 140.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 if (canLoadOlder) {
