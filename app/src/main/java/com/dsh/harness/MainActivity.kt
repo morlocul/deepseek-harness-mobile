@@ -337,6 +337,7 @@ private fun SettingsScreen(vm: HarnessViewModel, context: Context, baseUrl: Stri
 @Composable
 private fun ConnectScreen(vm: HarnessViewModel, initialUrl: String? = null, onConnected: () -> Unit) {
     val t = LocalHarness.current
+    val context = LocalContext.current
     var url by remember(initialUrl) { mutableStateOf(initialUrl ?: ServerPrefs.load(context)) }
     var showHelp by remember { mutableStateOf(false) }
     val status by vm.status.collectAsState()
