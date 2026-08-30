@@ -23,6 +23,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -86,7 +87,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -820,6 +823,7 @@ private fun ChatScreen(vm: HarnessViewModel, sessionId: String, title: String?, 
 @Composable
 private fun MessageBubble(m: MessageItem, images: Map<String, String>, onLoadImage: (String) -> Unit) {
     val t = LocalHarness.current
+    val clipboard = LocalClipboardManager.current
     val mine = m.role == "user"
     val bg = if (mine) t.accentSoft else t.surfaceAlt
     val role = when (m.role) {
@@ -845,7 +849,10 @@ private fun MessageBubble(m: MessageItem, images: Map<String, String>, onLoadIma
                 containerColor = bg,
                 contentColor = if (mine) Color.White else t.text
             ),
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f).combinedClickable(
+                onClick = {},
+                onLongClick = { if (m.text.isNotBlank()) clipboard.setText(AnnotatedString(m.text)) }
+            )
         ) {
             Column(Modifier.padding(12.dp)) {
                 if (!m.tool.isNullOrBlank()) {
