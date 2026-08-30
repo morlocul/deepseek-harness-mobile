@@ -145,8 +145,14 @@ class HarnessViewModel : ViewModel() {
     // latest GitHub release available (checked from Settings)
     private val _githubUpdate = MutableStateFlow<UpdateInfo?>(null)
     val githubUpdate: StateFlow<UpdateInfo?> = _githubUpdate.asStateFlow()
+    private val _checking = MutableStateFlow(false)
+    val checking: StateFlow<Boolean> = _checking.asStateFlow()
+    private val _checkMsg = MutableStateFlow<String?>(null)
+    val checkMsg: StateFlow<String?> = _checkMsg.asStateFlow()
 
     fun checkGitHubUpdate(installedVersionName: String) {
+        _checking.value = true
+        _checkMsg.value = null
         viewModelScope.launch {
             try {
                 val url = "https://api.github.com/repos/morlocul/deepseek-harness-mobile/releases/latest"
@@ -154,7 +160,8 @@ class HarnessViewModel : ViewModel() {
                     okhttp3.OkHttpClient().newCall(okhttp3.Request.Builder().url(url)
                         .header("Accept", "application/vnd.github+json").build())
                         .execute().use { resp -> if (resp.isSuccessful) resp.body?.string() else null }
-                } ?: return@launch
+                }
+                if (text == null) { _checkMsg.value = "Check failed (network?)"; return@launch }
                 val j = JSONObject(text)
                 val tag = j.optString("tag_name").removePrefix("v")
                 val assets = j.optJSONArray("assets")
@@ -165,10 +172,17 @@ class HarnessViewModel : ViewModel() {
                 }
                 if (compareVersion(tag, installedVersionName) > 0 && apkUrl.isNotBlank()) {
                     _githubUpdate.value = UpdateInfo(0, tag, apkUrl)
+                    _checkMsg.value = "Update available: v$tag"
                 } else {
                     _githubUpdate.value = null
+                    _checkMsg.value = "You're up to date (v$installedVersionName)"
                 }
-            } catch (_: Exception) { _githubUpdate.value = null }
+            } catch (_: Exception) {
+                _githubUpdate.value = null
+                _checkMsg.value = "Check failed"
+            } finally {
+                _checking.value = false
+            }
         }
     }
 

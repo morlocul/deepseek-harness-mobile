@@ -258,6 +258,8 @@ private fun SettingsScreen(vm: HarnessViewModel, context: Context, baseUrl: Stri
     val qrLink = if (baseUrl.isNotBlank()) "harness://open?url=" + Uri.encode(baseUrl) else ""
     val qr = remember(qrLink) { if (qrLink.isNotBlank()) qrBitmap(qrLink) else null }
     val githubUpdate by vm.githubUpdate.collectAsState()
+    val checking by vm.checking.collectAsState()
+    val checkMsg by vm.checkMsg.collectAsState()
     val scope = rememberCoroutineScope()
     Column(Modifier.fillMaxSize().padding(20.dp).verticalScroll(rememberScrollState())) {
         Text("SETTINGS", fontFamily = FontFamily.Monospace, fontSize = 12.sp,
@@ -304,8 +306,13 @@ private fun SettingsScreen(vm: HarnessViewModel, context: Context, baseUrl: Stri
         }
         OutlinedButton(
             onClick = { vm.checkGitHubUpdate(UpdateManager.installedVersionName(context)) },
+            enabled = !checking,
             modifier = Modifier.fillMaxWidth().padding(top = 6.dp)
-        ) { Text("Check for updates (GitHub)") }
+        ) { Text(if (checking) "Checking…" else "Check for updates (GitHub)") }
+        checkMsg?.let {
+            Spacer(Modifier.height(6.dp))
+            Text(it, style = MaterialTheme.typography.bodySmall, color = t.accentText)
+        }
         Spacer(Modifier.height(20.dp))
         Text("Theme", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(12.dp))
