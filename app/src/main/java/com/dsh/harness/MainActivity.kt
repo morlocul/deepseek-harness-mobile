@@ -160,6 +160,7 @@ fun HarnessApp(vm: HarnessViewModel = viewModel(), initialUrl: String? = null) {
 
     BackHandler(enabled = openSessionId != null) { openSessionId = null; openTitle = null }
     BackHandler(enabled = showShared) { showShared = false }
+    BackHandler(enabled = openSessionId == null && !showShared && tab != 0) { tab = 0 }
     val t = LocalHarness.current
 
     Box(Modifier.fillMaxSize()) {
