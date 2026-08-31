@@ -241,6 +241,7 @@ class HarnessViewModel : ViewModel() {
         _pendingQuestion.value = null
         startMux()
         loadModels()
+        refreshSessions()
         viewModelScope.launch {
             _busy.value = true
             try {
@@ -332,6 +333,7 @@ class HarnessViewModel : ViewModel() {
                         .put("mode", "queue")
                         .put("content", content))
                 }
+                refreshSessions()
             } catch (e: Exception) {
                 val l = _messages.value.toMutableList()
                 l.add(MessageItem("err", "system", "Error sending: ${e.message}", "", "", System.currentTimeMillis()))

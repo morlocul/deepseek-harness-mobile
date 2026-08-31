@@ -57,6 +57,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -77,6 +78,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -899,7 +901,7 @@ private fun MessageBubble(m: MessageItem, images: Map<String, String>, onLoadIma
 
 @Composable
 private fun QuestionCard(q: QuestionItem, onAnswer: (String, List<String>, String) -> Unit) {
-    var selected by remember { mutableStateOf<String?>(null) }
+    val selected = remember { mutableStateListOf<String>() }
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color(0xFF26314A))
@@ -910,21 +912,26 @@ private fun QuestionCard(q: QuestionItem, onAnswer: (String, List<String>, Strin
             if (q.detail.isNotBlank()) Text(q.detail, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
             Spacer(Modifier.height(10.dp))
             q.options.forEach { opt ->
-                OutlinedButton(
-                    onClick = { selected = opt },
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)
+                Row(
+                    Modifier.fillMaxWidth().clickable {
+                        if (opt in selected) selected.remove(opt) else selected.add(opt)
+                    }.padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(opt)
+                    Checkbox(
+                        checked = opt in selected,
+                        onCheckedChange = { if (it) selected.add(opt) else selected.remove(opt) }
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(opt, style = MaterialTheme.typography.bodyMedium)
                 }
             }
             Spacer(Modifier.height(6.dp))
             Button(
-                onClick = { selected?.let { onAnswer(q.id, listOf(it), "") } },
-                enabled = selected != null,
+                onClick = { onAnswer(q.id, selected.toList(), "") },
+                enabled = selected.isNotEmpty(),
                 modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Answer")
-            }
+            ) { Text("Submit") }
         }
     }
 }
