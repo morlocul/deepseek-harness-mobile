@@ -157,7 +157,11 @@ class HarnessViewModel : ViewModel() {
             try {
                 val url = "https://api.github.com/repos/morlocul/deepseek-harness-mobile/releases/latest"
                 val text = withContext(Dispatchers.IO) {
-                    okhttp3.OkHttpClient().newCall(okhttp3.Request.Builder().url(url)
+                    okhttp3.OkHttpClient.Builder()
+                        .connectTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
+                        .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                        .build()
+                        .newCall(okhttp3.Request.Builder().url(url)
                         .header("Accept", "application/vnd.github+json").build())
                         .execute().use { resp -> if (resp.isSuccessful) resp.body?.string() else null }
                 }
