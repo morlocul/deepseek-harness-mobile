@@ -78,6 +78,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -114,6 +115,7 @@ import com.dsh.harness.ui.qrBitmap
 import com.dsh.harness.ui.themeColorScheme
 import com.dsh.harness.ui.tokens
 import com.mikepenz.markdown.m3.Markdown
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 private val Dark = darkColorScheme(
@@ -704,9 +706,11 @@ private fun ChatScreen(vm: HarnessViewModel, sessionId: String, title: String?, 
     // Open at the newest messages; also follow when the user sends a message.
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty() && (justOpened || messages.last().role == "user")) {
-            kotlinx.coroutines.delay(150)
-            listState.scrollToItem(messages.lastIndex)
             justOpened = false
+            // wait until the last item is actually laid out, then scroll to it
+            snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
+                .first { it == messages.lastIndex }
+            listState.scrollToItem(messages.lastIndex)
         }
     }
 
@@ -763,7 +767,7 @@ private fun ChatScreen(vm: HarnessViewModel, sessionId: String, title: String?, 
             LazyColumn(
                 state = listState,
                 modifier = Modifier.weight(1f).fillMaxWidth(),
-                contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 140.dp),
+                contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 100.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 if (canLoadOlder) {
