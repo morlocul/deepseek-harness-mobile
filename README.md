@@ -77,9 +77,11 @@ After the script: **restart DSH** — `Ctrl+C` in its terminal, then `ollama lau
 - **Chats** — conversations grouped by workspace, streaming, live **reasoning** ("thinking…" indicator + deep-think content), markdown (tables, code blocks).
 - **Model** — switch via the top button or `/model` (or `/model` typed in the composer). Vision models (e.g. `qwen3.8:27b-128k`) can read attached images.
 - **Images** — attach an image in chat (base64), and chat images render inline.
+- **Questions** — when the model asks a question, answer with **checkboxes** (multi-select) + Submit.
+- **Copy** — long-press a message to copy its text.
 - **Workspace** — browse the project folder on the PC.
 - **Settings** — theme (light/dark/system), **Server** (address + setup QR + change/reconnect), **Updates** (check GitHub for the latest release).
-- Bottom bar: **Chats · Workspace · Settings** (icons). Shared files are inside Workspace.
+- Bottom bar: **Chats · Workspace · Settings** (icons). Shared files are inside Workspace. **Back** from Workspace/Settings returns to Chats (doesn't exit the app).
 
 ---
 
