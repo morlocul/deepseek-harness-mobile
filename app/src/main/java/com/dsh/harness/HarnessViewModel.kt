@@ -181,9 +181,9 @@ class HarnessViewModel : ViewModel() {
                     _githubUpdate.value = null
                     _checkMsg.value = "You're up to date (v$installedVersionName)"
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
                 _githubUpdate.value = null
-                _checkMsg.value = "Check failed"
+                _checkMsg.value = "Check failed: ${e.message}"
             } finally {
                 _checking.value = false
             }
