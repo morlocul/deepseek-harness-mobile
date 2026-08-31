@@ -704,8 +704,8 @@ private fun ChatScreen(vm: HarnessViewModel, sessionId: String, title: String?, 
     // Open at the newest messages; also follow when the user sends a message.
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty() && (justOpened || messages.last().role == "user")) {
-            kotlinx.coroutines.delay(80)
-            listState.animateScrollToItem(messages.lastIndex)
+            kotlinx.coroutines.delay(150)
+            listState.scrollToItem(messages.lastIndex)
             justOpened = false
         }
     }
@@ -774,18 +774,14 @@ private fun ChatScreen(vm: HarnessViewModel, sessionId: String, title: String?, 
                     }
                 }
                 items(messages) { m -> MessageBubble(m, images, vm::loadImage) }
-                if (thinking) {
-                    item {
-                        val infinite = rememberInfiniteTransition()
-                        val alpha by infinite.animateFloat(0.3f, 1f, infiniteRepeatable(tween(600), RepeatMode.Reverse))
-                        Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Box(Modifier.size(10.dp).background(MaterialTheme.colorScheme.primary, CircleShape).graphicsLayer { this.alpha = alpha })
-                            Spacer(Modifier.width(8.dp))
-                            Text("thinking…", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
-                        }
-                    }
-                }
                 question?.let { q -> item { QuestionCard(q) { id, sel, custom -> vm.answer(id, sel, custom) } } }
+            }
+            if (thinking) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(10.dp).background(MaterialTheme.colorScheme.primary, CircleShape))
+                    Spacer(Modifier.width(8.dp))
+                    Text("thinking…", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+                }
             }
             pendingImage?.let {
                 Row(Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
