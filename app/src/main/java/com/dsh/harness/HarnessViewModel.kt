@@ -456,9 +456,12 @@ class HarnessViewModel : ViewModel() {
             "user/message" -> {
                 val m = Parse.userMessage(event)
                 if (m != null) {
-                    // replace the optimistic local message with the authoritative one
-                    list.removeAll { it.id.startsWith("local-") }
-                    list.add(m)
+                    if (m.text.isNotBlank()) {
+                        // replace the optimistic local message with the authoritative one
+                        list.removeAll { it.id.startsWith("local-") }
+                        list.add(m)
+                    }
+                    // else: keep the optimistic message (it already has the user's text)
                 }
             }
             "assistant/chunk" -> {
