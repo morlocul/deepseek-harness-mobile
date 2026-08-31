@@ -696,7 +696,7 @@ private fun ChatScreen(vm: HarnessViewModel, sessionId: String, title: String?, 
     val canLoadOlder by vm.canLoadOlder.collectAsState()
     var input by remember { mutableStateOf("") }
     var modelMenu by remember { mutableStateOf(false) }
-    var justOpened by remember { mutableStateOf(true) }
+    var justOpened by remember(sessionId) { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
     val context = LocalContext.current

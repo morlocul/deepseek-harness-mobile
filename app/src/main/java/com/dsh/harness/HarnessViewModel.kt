@@ -453,7 +453,14 @@ class HarnessViewModel : ViewModel() {
         val type = event.optString("type")
         val list = _messages.value.toMutableList()
         when (type) {
-            "user/message" -> Parse.userMessage(event)?.let { list.add(it) }
+            "user/message" -> {
+                val m = Parse.userMessage(event)
+                if (m != null) {
+                    // replace the optimistic local message with the authoritative one
+                    list.removeAll { it.id.startsWith("local-") }
+                    list.add(m)
+                }
+            }
             "assistant/chunk" -> {
                 val chunk = event.optJSONObject("data")?.optJSONObject("chunk")
                 val ctype = chunk?.optString("type")
