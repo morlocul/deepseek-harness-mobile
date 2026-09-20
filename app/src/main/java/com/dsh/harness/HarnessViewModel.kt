@@ -274,6 +274,7 @@ class HarnessViewModel : ViewModel() {
         followStreamId?.let { old -> try { a.closeStream(old) } catch (_: Exception) {} }
         _busy.value = true
         try {
+            startMux()
             followStreamId = a.followSession(item.sessionId, 50) { value ->
                 when (value.optString("type")) {
                     // The history arrives as one snapshot holding the records;
@@ -294,6 +295,7 @@ class HarnessViewModel : ViewModel() {
             }
         } catch (e: Exception) {
             _busy.value = false
+            _thinking.value = false
             _messages.value = listOf(MessageItem("e", "system", "Error reading: ${e.message}", "", "", 0))
         }
         _canLoadOlder.value = false
@@ -465,8 +467,21 @@ class HarnessViewModel : ViewModel() {
 
     private fun startMux() {
         val a = api ?: return
-        if (mux != null) return
-        mux = a.connectMux { msg -> _status.value = "Stream lost: $msg" }
+        // connectMux is idempotent; gating on a local field meant a dropped
+        // socket was never noticed and every later stream failed.
+        mux = a.connectMux { msg ->
+            _status.value = "Reconnecting… ($msg)"
+            _thinking.value = false
+            // Bring the open conversation back on a fresh socket.
+            currentSessionId?.let { sid ->
+                val keep = _sessions.value.firstOrNull { s -> s.sessionId == sid }
+                    ?: SessionItem(sid, "", System.currentTimeMillis(), false)
+                viewModelScope.launch {
+                    kotlinx.coroutines.delay(1500)
+                    openSession(keep)
+                }
+            }
+        }
         a.followEvents { value ->
             if (value.optString("type") == "emit" && value.optString("event").startsWith("api-session/")) {
                 refreshSessions()

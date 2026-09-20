@@ -159,7 +159,11 @@ class DshApi(private val base: String, private val token: String? = null) {
     // ----------------------------------------------------------------- mux
 
     private var mux: WebSocket? = null
+    private var muxFailure: ((String) -> Unit)? = null
     private val handlers = ConcurrentHashMap<String, (JSONObject) -> Unit>()
+
+    /** True while the multiplexed socket is believed to be up. */
+    val muxConnected: Boolean get() = mux != null
 
     /**
      * Opens the single multiplexed socket. Frames arrive as
@@ -167,6 +171,7 @@ class DshApi(private val base: String, private val token: String? = null) {
      * opened that stream.
      */
     fun connectMux(onFailure: (String) -> Unit): WebSocket {
+        muxFailure = onFailure
         mux?.let { return it }
         val req = Request.Builder().url("$base/api/remote.mux").build()
         val ws = client.newWebSocket(req, object : WebSocketListener() {
@@ -198,7 +203,10 @@ class DshApi(private val base: String, private val token: String? = null) {
      * Returns the streamId so the caller can close it later.
      */
     fun openStream(endpoint: String, args: JSONObject = JSONObject(), onItem: (JSONObject) -> Unit): String {
-        val ws = mux ?: throw RpcException("transport", "mux neconectat")
+        // A dropped socket used to surface as "mux neconectat" on the next
+        // action. Reconnect instead; OkHttp queues sends until the handshake
+        // completes, so the open frame is not lost.
+        val ws = mux ?: connectMux(muxFailure ?: {})
         val sid = UUID.randomUUID().toString()
         handlers[sid] = onItem
         val frame = JSONObject()
