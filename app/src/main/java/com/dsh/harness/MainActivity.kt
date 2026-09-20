@@ -360,7 +360,7 @@ private fun ConnectScreen(vm: HarnessViewModel, initialUrl: String? = null, onCo
         "Install Tailscale on your PC and phone, signed into the same tailnet.",
         "On the PC, run once: powershell -File setup-dsh-remote.ps1",
         "Restart DSH (Ctrl+C, then 'ollama launch dsh').",
-        "Enter the address shown by the script below (e.g. http://host.ts.net:3080)."
+        "Paste the full link DSH prints when it starts, including ?token=… (it changes on every restart)."
     )
     Column(
         Modifier.fillMaxSize().padding(24.dp).imePadding().verticalScroll(rememberScrollState()),
@@ -375,12 +375,12 @@ private fun ConnectScreen(vm: HarnessViewModel, initialUrl: String? = null, onCo
             value = url,
             onValueChange = { url = it },
             label = { Text("DSH address") },
-            placeholder = { Text("http://<tailnet-ip>:3080") },
+            placeholder = { Text("http://<tailnet-ip>:3080/?token=…") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(Modifier.height(8.dp))
-        Text("Your DSH address from Tailscale (e.g. http://100.x.y.z:3080 or http://host.ts.net:3080)",
+        Text("Paste the whole link DSH prints on start, token included — e.g. http://100.x.y.z:3080/?token=ABC. The token changes every time DSH restarts.",
             style = MaterialTheme.typography.bodySmall, color = t.muted)
         Spacer(Modifier.height(16.dp))
         Button(

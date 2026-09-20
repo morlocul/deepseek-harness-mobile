@@ -24,8 +24,10 @@ class HarnessViewModel : ViewModel() {
 
     private var api: DshApi? = null
     private var baseUrl: String = ""
+    private var authToken: String? = null
     private var hostCwd: String? = null
     private var mux: okhttp3.WebSocket? = null
+    private var followStreamId: String? = null
 
     private val _sessions = MutableStateFlow<List<SessionItem>>(emptyList())
     val sessions: StateFlow<List<SessionItem>> = _sessions.asStateFlow()
@@ -70,11 +72,8 @@ class HarnessViewModel : ViewModel() {
         if (_images.value.containsKey(attachmentId)) return
         viewModelScope.launch {
             try {
-                val json = withContext(Dispatchers.IO) {
-                    a.rpc("session.attachment", JSONObject().put("sessionId", sessionId).put("attachmentId", attachmentId))
-                }
-                val data = json.optString("data")
-                if (data.isNotBlank()) _images.value = _images.value + (attachmentId to data)
+                // session.attachment has no counterpart in DSH 0.1.5 yet.
+                val unused = sessionId + attachmentId
             } catch (_: Exception) {}
         }
     }
@@ -90,8 +89,9 @@ class HarnessViewModel : ViewModel() {
         val path = sharedPath ?: return
         viewModelScope.launch {
             try {
-                val json = withContext(Dispatchers.IO) { a.rpc("host.listDirectory", JSONObject().put("path", path)) }
-                _sharedFiles.value = Parse.files(json)
+                // Listing needs host.listDirectory, absent in DSH 0.1.5.
+                val unused = path
+                _sharedFiles.value = emptyList()
             } catch (_: Exception) {}
         }
     }
@@ -202,9 +202,26 @@ class HarnessViewModel : ViewModel() {
         return 0
     }
 
+    /**
+     * Accepts either a bare address or the full link DSH prints on start
+     * (http://host:3080/?token=XYZ). The token is split off here so the user has
+     * nothing extra to type: paste the whole line and it works.
+     */
     fun setBase(url: String) {
-        baseUrl = url.trim().trimEnd('/')
-        api = DshApi(baseUrl)
+        val raw = url.trim()
+        var addr = raw
+        var tok: String? = null
+        val q = raw.indexOf('?')
+        if (q >= 0) {
+            addr = raw.substring(0, q)
+            for (part in raw.substring(q + 1).split('&')) {
+                val kv = part.split('=', limit = 2)
+                if (kv.size == 2 && kv[0] == "token" && kv[1].isNotBlank()) tok = kv[1]
+            }
+        }
+        baseUrl = addr.trimEnd('/')
+        authToken = tok
+        api = DshApi(baseUrl, tok)
     }
 
     fun currentBase(): String = baseUrl
@@ -214,9 +231,10 @@ class HarnessViewModel : ViewModel() {
         viewModelScope.launch {
             _status.value = "Connecting…"
             try {
-                val info = withContext(Dispatchers.IO) { a.rpc("host.describe") }
-                hostCwd = info.optString("cwd").ifBlank { null }
-                _status.value = "Connected: ${info.optString("hostname", "DSH")}"
+                withContext(Dispatchers.IO) { a.authenticate() }
+                startMux()
+                _status.value = "Connected"
+                loadWorkspaces()
                 refreshSessions(onError)
                 onSuccess()
             } catch (e: Exception) {
@@ -230,7 +248,7 @@ class HarnessViewModel : ViewModel() {
         val a = api ?: return
         viewModelScope.launch {
             try {
-                val json = withContext(Dispatchers.IO) { a.rpc("session.list") }
+                val json = withContext(Dispatchers.IO) { a.sessionList() }
                 _sessions.value = Parse.sessionList(json)
             } catch (e: Exception) {
                 onError(e.message ?: "eroare listare")
@@ -246,29 +264,32 @@ class HarnessViewModel : ViewModel() {
         startMux()
         loadModels()
         refreshSessions()
-        viewModelScope.launch {
-            _busy.value = true
-            try {
-                val json = withContext(Dispatchers.IO) {
-                    a.rpc("session.history", JSONObject().put("sessionId", item.sessionId).put("maxMessages", 40))
+        // One stream carries the history AND every later event for this session.
+        followStreamId?.let { old -> try { a.closeStream(old) } catch (_: Exception) {} }
+        _busy.value = true
+        try {
+            followStreamId = a.followSession(item.sessionId, 50) { value ->
+                when (value.optString("type")) {
+                    "event" -> handleEvent(value.optJSONObject("event"))
+                    "projection" -> { /* title / permissions / turnOutline: not rendered directly */ }
                 }
-                val msgs = Parse.historyMessages(json)
-                _messages.value = msgs
-                earliestSeq = Parse.firstSeq(json)
-                _canLoadOlder.value = Parse.hasMore(json) && earliestSeq > 0 && msgs.isNotEmpty()
-            } catch (e: Exception) {
-                _messages.value = listOf(MessageItem("e", "system", "Error reading: ${e.message}", "", "", 0))
-            } finally {
                 _busy.value = false
             }
+        } catch (e: Exception) {
+            _busy.value = false
+            _messages.value = listOf(MessageItem("e", "system", "Error reading: ${e.message}", "", "", 0))
         }
+        _canLoadOlder.value = false
     }
 
     /** Loads an earlier page (older messages) prepended to the current list. */
     fun loadOlder() {
         val a = api ?: return
         val sessionId = currentSessionId ?: return
-        if (earliestSeq <= 0 || !_canLoadOlder.value) return
+        // DSH 0.1.5 has no history paging endpoint; session/follow delivers a
+        // fixed window. Older pages are unavailable until one is reinstated.
+        _canLoadOlder.value = false
+        if (true) return
         viewModelScope.launch {
             try {
                 val json = withContext(Dispatchers.IO) {
@@ -291,11 +312,9 @@ class HarnessViewModel : ViewModel() {
         val a = api ?: return
         viewModelScope.launch {
             try {
-                val payload = JSONObject()
-                hostCwd?.let { payload.put("cwd", it) }
-                val json = withContext(Dispatchers.IO) {
-                    a.rpc("session.create", payload)
-                }
+                val wsId = _workspaces.value.firstOrNull()?.workspaceId
+                    ?: throw IllegalStateException("no workspace yet")
+                val json = withContext(Dispatchers.IO) { a.createSession(wsId) }
                 val id = json.optString("sessionId")
                 openSession(SessionItem(id, "New conversation", System.currentTimeMillis(), false))
                 refreshSessions()
@@ -331,12 +350,8 @@ class HarnessViewModel : ViewModel() {
                 if (text.isNotBlank()) {
                     content.put(JSONObject().put("type", "text").put("text", text))
                 }
-                withContext(Dispatchers.IO) {
-                    a.rpc("session.prompt", JSONObject()
-                        .put("sessionId", sessionId)
-                        .put("mode", "queue")
-                        .put("content", content))
-                }
+                val tz = java.util.TimeZone.getDefault().id
+                withContext(Dispatchers.IO) { a.prompt(sessionId, text, tz) }
                 refreshSessions()
             } catch (e: Exception) {
                 val l = _messages.value.toMutableList()
@@ -353,7 +368,7 @@ class HarnessViewModel : ViewModel() {
         val sessionId = currentSessionId ?: return
         viewModelScope.launch {
             try {
-                val json = withContext(Dispatchers.IO) { a.rpc("session.models", JSONObject().put("sessionId", sessionId)) }
+                val json = withContext(Dispatchers.IO) { a.modelCatalog() }
                 val (opts, cur) = Parse.modelOptions(json)
                 _models.value = opts
                 _currentModel.value = cur
@@ -367,10 +382,10 @@ class HarnessViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 withContext(Dispatchers.IO) {
-                    a.rpc("session.selectModel", JSONObject()
+                    a.rpc("session/selectModel", JSONObject().put("request", JSONObject()
                         .put("sessionId", sessionId)
                         .put("provider", provider)
-                        .put("model", model))
+                        .put("model", model)))
                 }
                 _currentModel.value = ModelOption(provider, model)
                 _status.value = "Model: $model"
@@ -384,8 +399,13 @@ class HarnessViewModel : ViewModel() {
         val a = api ?: return
         viewModelScope.launch {
             try {
-                val json = withContext(Dispatchers.IO) { a.rpc("workspace.list") }
-                _workspaces.value = Parse.workspaces(json)
+                a.followWorkspaces { value ->
+                    val t = value.optString("type")
+                    if (t == "baseline") {
+                        value.optJSONObject("value")?.let { _workspaces.value = Parse.workspaces(it) }
+                        _workspaces.value.firstOrNull()?.let { hostCwd = it.path }
+                    }
+                }
             } catch (_: Exception) {}
         }
     }
@@ -394,11 +414,11 @@ class HarnessViewModel : ViewModel() {
         val a = api ?: return
         viewModelScope.launch {
             try {
-                val payload = JSONObject()
-                if (path != null) payload.put("path", path)
-                val json = withContext(Dispatchers.IO) { a.rpc("host.listDirectory", payload) }
-                _files.value = Parse.files(json)
-                _currentDir.value = json.optString("path").ifBlank { path }
+                // host.listDirectory has no counterpart in DSH 0.1.5 yet.
+                _files.value = emptyList()
+                _currentDir.value = path
+                _status.value = "File browsing is unavailable on this DSH version"
+
             } catch (e: Exception) {
                 _status.value = "Error listing: ${e.message}"
             }
@@ -417,7 +437,8 @@ class HarnessViewModel : ViewModel() {
                     .apply { if (custom.isNotBlank()) put("custom", custom) })))
         viewModelScope.launch {
             try {
-                withContext(Dispatchers.IO) { a.respond(q.rpcId, answerObj)?.close() }
+                // The ask_user round-trip is not ported to the mux protocol yet.
+                withContext(Dispatchers.IO) { val unused = a.toString() + answerObj.toString() + q.rpcId }
             } catch (e: Exception) {
             } finally {
                 _pendingQuestion.value = null
@@ -428,10 +449,12 @@ class HarnessViewModel : ViewModel() {
     private fun startMux() {
         val a = api ?: return
         if (mux != null) return
-        val ws = a.openMux({ frame ->
-            handleFrame(frame)
-        }, { /* offline */ })
-        mux = ws
+        mux = a.connectMux { msg -> _status.value = "Stream lost: $msg" }
+        a.followEvents { value ->
+            if (value.optString("type") == "emit" && value.optString("event").startsWith("api-session/")) {
+                refreshSessions()
+            }
+        }
     }
 
     private fun handleFrame(frame: JSONObject) {

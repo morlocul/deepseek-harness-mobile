@@ -171,7 +171,9 @@ object Parse {
 
     fun userMessage(event: JSONObject): MessageItem? {
         val data = event.optJSONObject("data") ?: return null
-        val message = data.optJSONObject("message") ?: return null
+        // DSH 0.1.5 puts the message straight in `data`; older builds nested it
+        // under `data.message`. Accept both.
+        val message = data.optJSONObject("message") ?: data
         val sourceKind = message.optJSONObject("source")?.optString("kind")
         val content = message.optJSONArray("content") ?: JSONArray()
         val text = StringBuilder()
@@ -204,7 +206,7 @@ object Parse {
 
     fun assistantMessage(event: JSONObject): MessageItem? {
         val data = event.optJSONObject("data") ?: return null
-        val message = data.optJSONObject("message") ?: return null
+        val message = data.optJSONObject("message") ?: data
         val content = message.optJSONArray("content") ?: JSONArray()
         val text = StringBuilder()
         val reasoning = StringBuilder()
