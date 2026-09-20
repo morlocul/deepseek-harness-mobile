@@ -703,14 +703,31 @@ private fun ChatScreen(vm: HarnessViewModel, sessionId: String, title: String?, 
     val listState = rememberLazyListState()
     val context = LocalContext.current
 
-    // Open at the newest messages; also follow when the user sends a message.
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty() && (justOpened || messages.last().role == "user")) {
+    // Stick to the newest message.
+    //
+    // The old effect scrolled once, on the first change of messages.size — which
+    // now happens while the list is still one item long, because the history
+    // arrives as a burst of records from one snapshot. It marked itself done and
+    // the rest of the conversation landed below the fold.
+    //
+    // Follow instead: scroll whenever the list grows or the last message grows
+    // (streaming appends text without changing the count), unless the reader has
+    // deliberately scrolled up.
+    val lastLen = messages.lastOrNull()?.text?.length ?: 0
+    LaunchedEffect(messages.size, lastLen, sessionId) {
+        if (messages.isEmpty()) return@LaunchedEffect
+        val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+        val nearBottom = lastVisible < 0 || lastVisible >= messages.lastIndex - 1
+        if (!(justOpened || nearBottom || messages.last().role == "user")) return@LaunchedEffect
+        kotlinx.coroutines.delay(16)          // let the new rows lay out
+        listState.scrollToItem(messages.lastIndex)
+        if (justOpened) {
+            // the opening snapshot lands in pieces; keep pinning until it settles
+            repeat(6) {
+                kotlinx.coroutines.delay(120)
+                if (messages.isNotEmpty()) listState.scrollToItem(messages.lastIndex)
+            }
             justOpened = false
-            // wait until the last item is actually laid out, then scroll to it
-            snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
-                .first { it == messages.lastIndex }
-            listState.scrollToItem(messages.lastIndex)
         }
     }
 
