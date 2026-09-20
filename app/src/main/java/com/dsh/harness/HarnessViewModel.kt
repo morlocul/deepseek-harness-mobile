@@ -28,6 +28,7 @@ class HarnessViewModel : ViewModel() {
     private var hostCwd: String? = null
     private var mux: okhttp3.WebSocket? = null
     private var followStreamId: String? = null
+    private var reconnecting = false
 
     private val _sessions = MutableStateFlow<List<SessionItem>>(emptyList())
     val sessions: StateFlow<List<SessionItem>> = _sessions.asStateFlow()
@@ -264,8 +265,12 @@ class HarnessViewModel : ViewModel() {
 
     fun openSession(item: SessionItem) {
         val a = api ?: return
+        // Clearing on every open meant a reconnect wiped the conversation. Only
+        // a genuine switch to another session starts from an empty list; a
+        // re-open replays the same snapshot, which merges in idempotently.
+        val switching = currentSessionId != item.sessionId
         currentSessionId = item.sessionId
-        _messages.value = emptyList()
+        if (switching) _messages.value = emptyList()
         _pendingQuestion.value = null
         startMux()
         loadModels()
@@ -275,27 +280,7 @@ class HarnessViewModel : ViewModel() {
         _busy.value = true
         try {
             startMux()
-            followStreamId = a.followSession(item.sessionId, 50) { value ->
-                when (value.optString("type")) {
-                    // The history arrives as one snapshot holding the records;
-                    // everything after it arrives as individual events.
-                    "snapshot" -> {
-                        val records = value.optJSONArray("records")
-                        if (records != null) {
-                            for (i in 0 until records.length()) {
-                                val rec = records.optJSONObject(i) ?: continue
-                                if (rec.optString("type") == "event") handleEvent(rec.optJSONObject("event"))
-                            }
-                        }
-                    }
-                    // Live text no longer arrives as an "assistant/chunk" event:
-                    // it is its own frame type, with the chunk one level deeper.
-                    "assistant-stream" -> handleAssistantStream(value.optJSONObject("frame"))
-                    "event" -> handleEvent(value.optJSONObject("event"))
-                    "projection" -> { /* title / permissions / turnOutline: not rendered directly */ }
-                }
-                _busy.value = false
-            }
+            followStreamId = a.followSession(item.sessionId, 50) { value -> onFollowValue(value) }
         } catch (e: Exception) {
             _busy.value = false
             _thinking.value = false
@@ -476,12 +461,19 @@ class HarnessViewModel : ViewModel() {
             _status.value = "Reconnecting… ($msg)"
             _thinking.value = false
             // Bring the open conversation back on a fresh socket.
-            currentSessionId?.let { sid ->
-                val keep = _sessions.value.firstOrNull { s -> s.sessionId == sid }
-                    ?: SessionItem(sid, "", System.currentTimeMillis(), false)
-                viewModelScope.launch {
-                    kotlinx.coroutines.delay(1500)
-                    openSession(keep)
+            if (reconnecting) return@connectMux
+            reconnecting = true
+            viewModelScope.launch {
+                kotlinx.coroutines.delay(1500)
+                try {
+                    val sid = currentSessionId
+                    if (sid != null) {
+                        followStreamId = a.followSession(sid, 50) { value -> onFollowValue(value) }
+                        _status.value = "Connected"
+                    }
+                } catch (_: Exception) {
+                } finally {
+                    reconnecting = false
                 }
             }
         }
@@ -506,6 +498,12 @@ class HarnessViewModel : ViewModel() {
         }
     }
 
+    /** Appends only if that id is not already on screen (snapshots replay). */
+    private fun MutableList<MessageItem>.addUnique(m: MessageItem) {
+        if (m.id.isNotBlank() && any { it.id == m.id }) return
+        add(m)
+    }
+
     private fun handleEvent(event: JSONObject?) {
         if (event == null) return
         val type = event.optString("type")
@@ -517,7 +515,7 @@ class HarnessViewModel : ViewModel() {
                     if (m.text.isNotBlank()) {
                         // replace the optimistic local message with the authoritative one
                         list.removeAll { it.id.startsWith("local-") }
-                        list.add(m)
+                        list.addUnique(m)
                     }
                     // else: keep the optimistic message (it already has the user's text)
                 }
@@ -543,11 +541,34 @@ class HarnessViewModel : ViewModel() {
                     reasoningStream = ArrayList()
                     // drop the streaming placeholder if present
                     if (list.isNotEmpty() && list.last().id.startsWith("stream-")) list.removeAt(list.lastIndex)
-                    list.add(m)
+                    list.addUnique(m)
                 }
             }
         }
         _messages.value = list
+    }
+
+    /** Everything session/follow delivers, from the first snapshot onwards. */
+    private fun onFollowValue(value: JSONObject) {
+        when (value.optString("type")) {
+            // The history arrives as one snapshot holding the records; everything
+            // after it arrives as individual events. A re-open replays the
+            // snapshot, so adding messages must stay idempotent.
+            "snapshot" -> {
+                val records = value.optJSONArray("records")
+                if (records != null) {
+                    for (i in 0 until records.length()) {
+                        val rec = records.optJSONObject(i) ?: continue
+                        if (rec.optString("type") == "event") handleEvent(rec.optJSONObject("event"))
+                    }
+                }
+            }
+            // Live text is its own frame type, with the chunk one level deeper.
+            "assistant-stream" -> handleAssistantStream(value.optJSONObject("frame"))
+            "event" -> handleEvent(value.optJSONObject("event"))
+            "projection" -> { /* title / permissions / turnOutline: not rendered directly */ }
+        }
+        _busy.value = false
     }
 
     /**
