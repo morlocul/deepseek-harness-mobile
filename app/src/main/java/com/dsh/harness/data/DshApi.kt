@@ -93,7 +93,17 @@ class DshApi(private val base: String, private val token: String? = null) {
         } catch (e: RpcException) {
             throw e
         } catch (e: Exception) {
-            throw RpcException("transport", e.message ?: "nu pot contacta serverul")
+            val m = e.message ?: ""
+            val hint = when {
+                m.contains("TLS", true) || m.contains("SSL", true) || m.contains("handshake", true) ->
+                    "serverul nu vorbește TLS pe acest port — încearcă http:// în loc de https://"
+                m.contains("Unable to resolve host", true) ->
+                    "numele nu se rezolvă — folosește adresa IP (100.x.y.z) sau activează MagicDNS în Tailscale"
+                m.contains("ECONNREFUSED", true) || m.contains("Failed to connect", true) ->
+                    "nimic nu ascultă acolo — DSH pornit? ești în tailnet?"
+                else -> m.ifBlank { "nu pot contacta serverul" }
+            }
+            throw RpcException("transport", hint)
         }
     }
 

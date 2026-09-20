@@ -208,7 +208,13 @@ class HarnessViewModel : ViewModel() {
      * nothing extra to type: paste the whole line and it works.
      */
     fun setBase(url: String) {
-        val raw = url.trim()
+        // People paste from chat, mail and docs, so the address arrives wrapped
+        // in brackets or quotes, or with the scheme missing. Clean it up here
+        // instead of failing with OkHttp's "no scheme was found".
+        var raw = url.trim().trim('(', ')', '<', '>', '"', '\'', '\u2018', '\u2019', '\u201C', '\u201D').trim()
+        if (raw.isNotEmpty() && !raw.startsWith("http://", true) && !raw.startsWith("https://", true)) {
+            raw = "http://" + raw.removePrefix("//")
+        }
         var addr = raw
         var tok: String? = null
         val q = raw.indexOf('?')
@@ -270,6 +276,17 @@ class HarnessViewModel : ViewModel() {
         try {
             followStreamId = a.followSession(item.sessionId, 50) { value ->
                 when (value.optString("type")) {
+                    // The history arrives as one snapshot holding the records;
+                    // everything after it arrives as individual events.
+                    "snapshot" -> {
+                        val records = value.optJSONArray("records")
+                        if (records != null) {
+                            for (i in 0 until records.length()) {
+                                val rec = records.optJSONObject(i) ?: continue
+                                if (rec.optString("type") == "event") handleEvent(rec.optJSONObject("event"))
+                            }
+                        }
+                    }
                     "event" -> handleEvent(value.optJSONObject("event"))
                     "projection" -> { /* title / permissions / turnOutline: not rendered directly */ }
                 }
