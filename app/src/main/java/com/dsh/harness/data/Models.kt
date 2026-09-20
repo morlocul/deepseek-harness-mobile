@@ -182,6 +182,11 @@ object Parse {
             if (b.optString("type") == "text") text.append(b.optString("text"))
         }
         val imgs = imageIds(content)
+        // Only "user" is something the person actually typed. The server also
+        // injects user-role messages from plugins ("plugin": runtime context)
+        // and the skill catalogue ("skill-catalog"); those are machinery, not
+        // conversation, and rendering them made the chat look corrupted.
+        if (sourceKind != null && sourceKind != "user" && sourceKind != "tool") return null
         if (sourceKind == "tool") {
             return MessageItem(
                 id = message.optString("id"),

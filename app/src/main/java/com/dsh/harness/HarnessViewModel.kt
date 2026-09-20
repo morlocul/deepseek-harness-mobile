@@ -288,6 +288,9 @@ class HarnessViewModel : ViewModel() {
                             }
                         }
                     }
+                    // Live text no longer arrives as an "assistant/chunk" event:
+                    // it is its own frame type, with the chunk one level deeper.
+                    "assistant-stream" -> handleAssistantStream(value.optJSONObject("frame"))
                     "event" -> handleEvent(value.optJSONObject("event"))
                     "projection" -> { /* title / permissions / turnOutline: not rendered directly */ }
                 }
@@ -545,6 +548,41 @@ class HarnessViewModel : ViewModel() {
             }
         }
         _messages.value = list
+    }
+
+    /**
+     * Live assistant output. The server sends
+     * `{"type":"assistant-stream","frame":{"type":"chunk","chunk":{"type":"text-delta","text":"…"}}}`
+     * and closes with an `assistant/message` event carrying the committed text,
+     * which [handleEvent] turns into the final row.
+     */
+    private fun handleAssistantStream(frame: JSONObject?) {
+        if (frame == null) return
+        when (frame.optString("type")) {
+            "start" -> {
+                streaming = ArrayList()
+                reasoningStream = ArrayList()
+                _thinking.value = true
+            }
+            "chunk" -> {
+                val chunk = frame.optJSONObject("chunk") ?: return
+                when (chunk.optString("type")) {
+                    "text-delta" -> {
+                        streaming.add(chunk.optString("text"))
+                        _thinking.value = true
+                    }
+                    "reasoning-delta" -> {
+                        reasoningStream.add(chunk.optString("text"))
+                        _thinking.value = true
+                    }
+                    else -> return   // block-start / block-end / usage / finish
+                }
+                val list = _messages.value.toMutableList()
+                upsertStreaming(list, streaming.joinToString(""), reasoningStream.joinToString(""))
+                _messages.value = list
+            }
+            "end" -> _thinking.value = false
+        }
     }
 
     private fun upsertStreaming(list: MutableList<MessageItem>, text: String, reasoning: String) {
